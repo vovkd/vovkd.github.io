@@ -1,0 +1,1709 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <script src="jquery.js"></script>
+    <script src="highlight.min.js"></script>
+    <script src="nav.js"></script>
+
+    <!-- Code Monospace Font -->
+    <link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet'>
+
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="skeleton.css">
+    <link rel="stylesheet" href="layout.css">
+    <link rel="stylesheet" href="gevent.css">
+
+    <!-- Syntax Highlighting Theme -->
+    <link rel="stylesheet" href="github.min.css">
+
+    <title>Gevent Tutorial</title>
+</head>
+<style>
+
+</style>
+<body>
+<div class="container">
+
+<div id="sidebar" class="three columns sidebar">
+    <nav>
+    </nav>
+</div>
+
+<div class="twelve columns offset-by-three content">
+
+    <header>
+        <h1><span class="green">Gevent</span> для практикующего питониста</h1>
+        <h3 class="author">
+            Написано пользователями Gevent
+        </h3>
+
+        <blockquote>
+        gevent -- это библиотека для организации одновременных вычислений на основе <a href="http://software.schmorp.de/pkg/libev.html">libev</a>. gevent предоставляет удобный API для задач, связанных с одновременной обработкой данных и работой с сетью.
+        </blockquote>
+    </header>
+
+    <div class="toc">
+<ul>
+<li><a href="#introduction">Introduction</a><ul>
+<li><a href="#contributors">Contributors</a></li>
+</ul>
+</li>
+<li><a href="#core">Core</a><ul>
+<li><a href="#greenlets">Greenlets</a></li>
+<li><a href="#synchronous-asynchronous-execution">Synchronous &amp; Asynchronous Execution</a></li>
+<li><a href="#determinism">Determinism</a></li>
+<li><a href="#spawning-greenlets">Spawning Greenlets</a></li>
+<li><a href="#greenlet-state">Greenlet State</a></li>
+<li><a href="#program-shutdown">Program Shutdown</a></li>
+<li><a href="#timeouts">Timeouts</a></li>
+<li><a href="#monkeypatching">Monkeypatching</a></li>
+</ul>
+</li>
+<li><a href="#data-structures">Data Structures</a><ul>
+<li><a href="#events">Events</a></li>
+<li><a href="#queues">Queues</a></li>
+<li><a href="#groups-and-pools">Groups and Pools</a></li>
+<li><a href="#locks-and-semaphores">Locks and Semaphores</a></li>
+<li><a href="#thread-locals">Thread Locals</a></li>
+<li><a href="#subprocess">Subprocess</a></li>
+<li><a href="#actors">Actors</a></li>
+</ul>
+</li>
+<li><a href="#real-world-applications">Real World Applications</a><ul>
+<li><a href="#gevent-zeromq">Gevent ZeroMQ</a></li>
+<li><a href="#simple-servers">Simple Servers</a></li>
+<li><a href="#wsgi-servers">WSGI Servers</a></li>
+<li><a href="#streaming-servers">Streaming Servers</a></li>
+<li><a href="#long-polling">Long Polling</a></li>
+<li><a href="#websockets">Websockets</a></li>
+<li><a href="#chat-server">Chat Server</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<h1 id="introduction">Introduction</h1>
+<p>The structure of this tutorial assumes an intermediate level
+knowledge of Python but not much else. No knowledge of
+concurrency is expected. The goal is to give you
+the tools you need to get going with gevent, help you tame
+your existing concurrency problems and start writing asynchronous
+applications today.</p>
+<h3 id="contributors">Contributors</h3>
+<p>In chronological order of contribution:
+<a href="http://www.stephendiehl.com">Stephen Diehl</a>
+<a href="https://github.com/jerem">J&eacute;r&eacute;my Bethmont</a>
+<a href="https://github.com/sww">sww</a>
+<a href="https://github.com/brunoqc">Bruno Bigras</a>
+<a href="https://github.com/dripton">David Ripton</a>
+<a href="https://github.com/traviscline">Travis Cline</a>
+<a href="https://github.com/Lothiraldan">Boris Feld</a>
+<a href="https://github.com/youngsterxyf">youngsterxyf</a>
+<a href="https://github.com/ehebert">Eddie Hebert</a>
+<a href="http://notmyidea.org">Alexis Metaireau</a>
+<a href="https://github.com/djv">Daniel Velkov</a>
+<a href="https://github.com/sww">Sean Wang</a>
+<a href="https://github.com/methane">Inada Naoki</a>
+<a href="https://github.com/brouberol">Balthazar Rouberol</a>
+<a href="https://github.com/iepathos">Glen Baker</a>
+<a href="https://gehrcke.de">Jan-Philip Gehrcke</a>
+<a href="https://github.com/zr40">Matthijs van der Vleuten</a>
+<a href="http://simonsblog.co.uk">Simon Hayward</a>
+<a href="https://github.com/AJamesPhillips">Alexander James Phillips</a>
+<a href="https://github.com/ramiro">Ramiro Morales</a>
+<a href="https://github.com/djheru">Philip Damra</a>
+<a href="https://github.com/fvieira">Francisco Jos&eacute; Marques Vieira</a>
+<a href="https://www.davidxia.com">David Xia</a>
+<a href="https://github.com/satoru">satoru</a>
+<a href="https://github.com/jsummerfield">James Summerfield</a>
+<a href="https://github.com/adaszko">Adam Szkoda</a>
+<a href="https://github.com/roysmith">Roy Smith</a>
+<a href="https://github.com/jianbin-netskope">Jianbin Wei</a>
+<a href="https://github.com/ToxicWar">Anton Larkin</a>
+<a href="https://github.com/matiasherranz-santex">Matias Herranz</a>
+<a href="http://www.bertera.it">Pietro Bertera</a></p>
+<p>Also thanks to Denis Bilenko for writing gevent and guidance in
+constructing this tutorial.</p>
+<p>This is a collaborative document published under MIT license.
+Have something to add? See a typo? Fork and issue a
+pull request <a href="https://github.com/sdiehl/gevent-tutorial">Github</a>.
+Any and all contributions are welcome.</p>
+<p>This page is also <a href="http://methane.github.com/gevent-tutorial-ja">available in Japanese</a> and <a href="http://pbertera.github.io/gevent-tutorial-it/">Italian</a>.</p>
+<h1 id="core">Core</h1>
+<h2 id="greenlets">Greenlets</h2>
+<p>The primary pattern used in gevent is the <strong>Greenlet</strong>, a
+lightweight coroutine provided to Python as a C extension module.
+Greenlets all run inside of the OS process for the main
+program but are scheduled cooperatively.</p>
+<blockquote>
+<p>Only one greenlet is ever running at any given time.</p>
+</blockquote>
+<p>This differs from any of the real parallelism constructs provided by
+<code>multiprocessing</code> or <code>threading</code> libraries which do spin processes
+and POSIX threads which are scheduled by the operating system and
+are truly parallel.</p>
+<h2 id="synchronous-asynchronous-execution">Synchronous &amp; Asynchronous Execution</h2>
+<p>The core idea of concurrency is that a larger task can be broken down
+into a collection of subtasks which are scheduled to run simultaneously
+or <em>asynchronously</em>, instead of one at a time or <em>synchronously</em>. A
+switch between the two subtasks is known as a <em>context switch</em>.</p>
+<p>A context switch in gevent is done through <em>yielding</em>. In this 
+example we have two contexts which yield to each other through invoking
+<code>gevent.sleep(0)</code>.</p>
+<pre><code class="python">
+import gevent
+
+def foo():
+    print('Running in foo')
+    gevent.sleep(0)
+    print('Explicit context switch to foo again')
+
+def bar():
+    print('Explicit context to bar')
+    gevent.sleep(0)
+    print('Implicit context switch back to bar')
+
+gevent.joinall([
+    gevent.spawn(foo),
+    gevent.spawn(bar),
+])
+</pre>
+
+<p></code>
+<pre><code class="python">
+Running in foo
+Explicit context to bar
+Explicit context switch to foo again
+Implicit context switch back to bar
+</pre></code></p>
+<p>It is illuminating to visualize the control flow of the program or walk
+through it with a debugger to see the context switches as they occur.</p>
+<p><img alt="Greenlet Control Flow" src="flow.gif" /></p>
+<p>The real power of gevent comes when we use it for network and IO
+bound functions which can be cooperatively scheduled. Gevent has
+taken care of all the details to ensure that your network
+libraries will implicitly yield their greenlet contexts whenever
+possible. I cannot stress enough what a powerful idiom this is.
+But maybe an example will illustrate.</p>
+<p>In this case the <code>select()</code> function is normally a blocking
+call that polls on various file descriptors.</p>
+<pre><code class="python">
+import time
+import gevent
+from gevent import select
+
+start = time.time()
+tic = lambda: 'at %1.1f seconds' % (time.time() - start)
+
+def gr1():
+    # Busy waits for a second, but we don't want to stick around...
+    print('Started Polling: %s' % tic())
+    select.select([], [], [], 2)
+    print('Ended Polling: %s' % tic())
+
+def gr2():
+    # Busy waits for a second, but we don't want to stick around...
+    print('Started Polling: %s' % tic())
+    select.select([], [], [], 2)
+    print('Ended Polling: %s' % tic())
+
+def gr3():
+    print("Hey lets do some stuff while the greenlets poll, %s" % tic())
+    gevent.sleep(1)
+
+gevent.joinall([
+    gevent.spawn(gr1),
+    gevent.spawn(gr2),
+    gevent.spawn(gr3),
+])
+</pre>
+
+<p></code>
+<pre><code class="python">
+Started Polling: at 0.0 seconds
+Started Polling: at 0.0 seconds
+Hey lets do some stuff while the greenlets poll, at 0.0 seconds
+Ended Polling: at 2.0 seconds
+Ended Polling: at 2.0 seconds
+</pre></code></p>
+<p>Another somewhat synthetic example defines a <code>task</code> function
+which is <em>non-deterministic</em>
+(i.e. its output is not guaranteed to give the same result for
+the same inputs). In this case the side effect of running the
+function is that the task pauses its execution for a random
+number of seconds.</p>
+<pre><code class="python">
+import gevent
+import random
+
+def task(pid):
+    """
+    Some non-deterministic task
+    """
+    gevent.sleep(random.randint(0,2)*0.001)
+    print('Task %s done' % pid)
+
+def synchronous():
+    for i in range(1,10):
+        task(i)
+
+def asynchronous():
+    threads = [gevent.spawn(task, i) for i in xrange(10)]
+    gevent.joinall(threads)
+
+print('Synchronous:')
+synchronous()
+
+print('Asynchronous:')
+asynchronous()
+</pre>
+
+<p></code>
+<pre><code class="python">
+Synchronous:
+Task 1 done
+Task 2 done
+Task 3 done
+Task 4 done
+Task 5 done
+Task 6 done
+Task 7 done
+Task 8 done
+Task 9 done
+Asynchronous:
+Task 7 done
+Task 4 done
+Task 5 done
+Task 8 done
+Task 9 done
+Task 0 done
+Task 1 done
+Task 2 done
+Task 3 done
+Task 6 done
+</pre></code></p>
+<p>In the synchronous case all the tasks are run sequentially,
+which results in the main programming <em>blocking</em> (
+i.e. pausing the execution of the main program )
+while each task executes.</p>
+<p>The important parts of the program are the
+<code>gevent.spawn</code> which wraps up the given function
+inside of a Greenlet thread. The list of initialized greenlets
+are stored in the array <code>threads</code> which is passed to
+the <code>gevent.joinall</code> function which blocks the current
+program to run all the given greenlets. The execution will step
+forward only when all the greenlets terminate.</p>
+<p>The important fact to notice is that the order of execution in
+the async case is essentially random and that the total execution
+time in the async case is much less than the sync case. In fact
+the maximum time for the synchronous case to complete is when
+each tasks pauses for 0.002 seconds resulting in a 0.02 seconds for the
+whole queue. In the async case the maximum runtime is roughly 0.002
+seconds since none of the tasks block the execution of the
+others.</p>
+<p>In a more common use case, asynchronously fetching data from a server,
+the runtime of <code>fetch()</code> will differ between
+requests, depending on the load on the remote server at the time of the request.</p>
+<pre><code class="python">import gevent.monkey
+gevent.monkey.patch_socket()
+
+import gevent
+import urllib2
+import simplejson as json
+
+def fetch(pid):
+    response = urllib2.urlopen('http://jsontime.herokuapp.com/')
+    result = response.read()
+    json_result = json.loads(result)
+    datetime = json_result['datetime']
+
+    print('Process %s: %s' % (pid, datetime))
+    return json_result['datetime']
+
+def synchronous():
+    for i in range(1,10):
+        fetch(i)
+
+def asynchronous():
+    threads = []
+    for i in range(1,10):
+        threads.append(gevent.spawn(fetch, i))
+    gevent.joinall(threads)
+
+print('Synchronous:')
+synchronous()
+
+print('Asynchronous:')
+asynchronous()
+</code>
+</pre>
+
+<h2 id="determinism">Determinism</h2>
+<p>As mentioned previously, greenlets are deterministic. Given the same
+configuration of greenlets and the same set of inputs, they always
+produce the same output. For example, let's spread a task across a
+multiprocessing pool and compare its results to the one of a gevent pool.</p>
+<pre>
+<code class="python">
+import time
+
+def echo(i):
+    time.sleep(0.001)
+    return i
+
+# Non Deterministic Process Pool
+
+from multiprocessing.pool import Pool
+
+p = Pool(10)
+run1 = [a for a in p.imap_unordered(echo, xrange(10))]
+run2 = [a for a in p.imap_unordered(echo, xrange(10))]
+run3 = [a for a in p.imap_unordered(echo, xrange(10))]
+run4 = [a for a in p.imap_unordered(echo, xrange(10))]
+
+print(run1 == run2 == run3 == run4)
+
+# Deterministic Gevent Pool
+
+from gevent.pool import Pool
+
+p = Pool(10)
+run1 = [a for a in p.imap_unordered(echo, xrange(10))]
+run2 = [a for a in p.imap_unordered(echo, xrange(10))]
+run3 = [a for a in p.imap_unordered(echo, xrange(10))]
+run4 = [a for a in p.imap_unordered(echo, xrange(10))]
+
+print(run1 == run2 == run3 == run4)
+</code>
+</pre>
+
+<pre>
+<code class="python">False
+True</code>
+</pre>
+
+<p>Even though gevent is normally deterministic, sources of
+non-determinism can creep into your program when you begin to
+interact with outside services such as sockets and files. Thus
+even though green threads are a form of "deterministic
+concurrency", they still can experience some of the same problems
+that POSIX threads and processes experience.</p>
+<p>The perennial problem involved with concurrency is known as a
+<em>race condition</em>. Simply put, a race condition occurs when two concurrent threads
+/ processes depend on some shared resource but also attempt to
+modify this value. This results in resources which values become
+time-dependent on the execution order. This is a problem, and in
+general one should very much try to avoid race conditions since
+they result in a globally non-deterministic program behavior.</p>
+<p>The best approach to this is to simply avoid all global state at all
+times. Global state and import-time side effects will always come
+back to bite you!</p>
+<h2 id="spawning-greenlets">Spawning Greenlets</h2>
+<p>gevent provides a few wrappers around Greenlet initialization.
+Some of the most common patterns are:</p>
+<pre><code class="python">
+import gevent
+from gevent import Greenlet
+
+def foo(message, n):
+    """
+    Each thread will be passed the message, and n arguments
+    in its initialization.
+    """
+    gevent.sleep(n)
+    print(message)
+
+# Initialize a new Greenlet instance running the named function
+# foo
+thread1 = Greenlet.spawn(foo, "Hello", 1)
+
+# Wrapper for creating and running a new Greenlet from the named
+# function foo, with the passed arguments
+thread2 = gevent.spawn(foo, "I live!", 2)
+
+# Lambda expressions
+thread3 = gevent.spawn(lambda x: (x+1), 2)
+
+threads = [thread1, thread2, thread3]
+
+# Block until all threads complete.
+gevent.joinall(threads)
+</pre>
+
+<p></code>
+<pre><code class="python">
+Hello
+I live!
+</pre></code></p>
+<p>In addition to using the base Greenlet class, you may also subclass
+Greenlet class and override the <code>_run</code> method.</p>
+<pre><code class="python">
+import gevent
+from gevent import Greenlet
+
+class MyGreenlet(Greenlet):
+
+    def __init__(self, message, n):
+        Greenlet.__init__(self)
+        self.message = message
+        self.n = n
+
+    def _run(self):
+        print(self.message)
+        gevent.sleep(self.n)
+
+g = MyGreenlet("Hi there!", 3)
+g.start()
+g.join()
+</pre>
+
+<p></code>
+<pre><code class="python">
+Hi there!
+</pre></code></p>
+<h2 id="greenlet-state">Greenlet State</h2>
+<p>Like any other segment of code, Greenlets can fail in various
+ways. A greenlet may fail to throw an exception, fail to halt or
+consume too many system resources.</p>
+<p>The internal state of a greenlet is generally a time-dependent
+parameter. There are a number of flags on greenlets which let
+you monitor the state of the thread:</p>
+<ul>
+<li><code>started</code> -- Boolean, indicates whether the Greenlet has been started</li>
+<li><code>ready()</code> -- Boolean, indicates whether the Greenlet has halted</li>
+<li><code>successful()</code> -- Boolean, indicates whether the Greenlet has halted and not thrown an exception</li>
+<li><code>value</code> -- arbitrary, the value returned by the Greenlet</li>
+<li><code>exception</code> -- exception, uncaught exception instance thrown inside the greenlet</li>
+</ul>
+<pre><code class="python">
+import gevent
+
+def win():
+    return 'You win!'
+
+def fail():
+    raise Exception('You fail at failing.')
+
+winner = gevent.spawn(win)
+loser = gevent.spawn(fail)
+
+print(winner.started) # True
+print(loser.started)  # True
+
+# Exceptions raised in the Greenlet, stay inside the Greenlet.
+try:
+    gevent.joinall([winner, loser])
+except Exception as e:
+    print('This will never be reached')
+
+print(winner.value) # 'You win!'
+print(loser.value)  # None
+
+print(winner.ready()) # True
+print(loser.ready())  # True
+
+print(winner.successful()) # True
+print(loser.successful())  # False
+
+# The exception raised in fail, will not propagate outside the
+# greenlet. A stack trace will be printed to stdout but it
+# will not unwind the stack of the parent.
+
+print(loser.exception)
+
+# It is possible though to raise the exception again outside
+# raise loser.exception
+# or with
+# loser.get()
+</pre>
+
+<p></code>
+<pre><code class="python">
+True
+True
+You win!
+None
+True
+True
+True
+False
+You fail at failing.
+</pre></code></p>
+<h2 id="program-shutdown">Program Shutdown</h2>
+<p>Greenlets that fail to yield when the main program receives a
+SIGQUIT may hold the program's execution longer than expected.
+This results in so called "zombie processes" which need to be
+killed from outside of the Python interpreter.</p>
+<p>A common pattern is to listen SIGQUIT events on the main program
+and to invoke <code>gevent.shutdown</code> before exit.</p>
+<pre>
+<code class="python">import gevent
+import signal
+
+def run_forever():
+    gevent.sleep(1000)
+
+if __name__ == '__main__':
+    gevent.signal(signal.SIGQUIT, gevent.kill)
+    thread = gevent.spawn(run_forever)
+    thread.join()
+</code>
+</pre>
+
+<h2 id="timeouts">Timeouts</h2>
+<p>Timeouts are a constraint on the runtime of a block of code or a
+Greenlet.</p>
+<pre>
+<code class="python">
+import gevent
+from gevent import Timeout
+
+seconds = 10
+
+timeout = Timeout(seconds)
+timeout.start()
+
+def wait():
+    gevent.sleep(10)
+
+try:
+    gevent.spawn(wait).join()
+except Timeout:
+    print('Could not complete')
+
+</code>
+</pre>
+
+<p>They can also be used with a context manager, in a <code>with</code> statement.</p>
+<pre>
+<code class="python">import gevent
+from gevent import Timeout
+
+time_to_wait = 5 # seconds
+
+class TooLong(Exception):
+    pass
+
+with Timeout(time_to_wait, TooLong):
+    gevent.sleep(10)
+</code>
+</pre>
+
+<p>In addition, gevent also provides timeout arguments for a
+variety of Greenlet and data stucture related calls. For example:</p>
+<pre><code class="python">
+import gevent
+from gevent import Timeout
+
+def wait():
+    gevent.sleep(2)
+
+timer = Timeout(1).start()
+thread1 = gevent.spawn(wait)
+
+try:
+    thread1.join(timeout=timer)
+except Timeout:
+    print('Thread 1 timed out')
+
+# --
+
+timer = Timeout.start_new(1)
+thread2 = gevent.spawn(wait)
+
+try:
+    thread2.get(timeout=timer)
+except Timeout:
+    print('Thread 2 timed out')
+
+# --
+
+try:
+    gevent.with_timeout(1, wait)
+except Timeout:
+    print('Thread 3 timed out')
+
+</pre>
+
+<p></code>
+<pre><code class="python">
+Thread 1 timed out
+Thread 2 timed out
+Thread 3 timed out
+</pre></code></p>
+<h2 id="monkeypatching">Monkeypatching</h2>
+<p>Alas we come to dark corners of Gevent. I've avoided mentioning
+monkey patching up until now to try and motivate the powerful
+coroutine patterns, but the time has come to discuss the dark arts
+of monkey-patching. If you noticed above we invoked the command
+<code>monkey.patch_socket()</code>. This is a purely side-effectful command to
+modify the standard library's socket library.</p>
+<pre>
+<code class="python">import socket
+print(socket.socket)
+
+print("After monkey patch")
+from gevent import monkey
+monkey.patch_socket()
+print(socket.socket)
+
+import select
+print(select.select)
+monkey.patch_select()
+print("After monkey patch")
+print(select.select)
+</code>
+</pre>
+
+<pre>
+<code class="python">class 'socket.socket'
+After monkey patch
+class 'gevent.socket.socket'
+
+built-in function select
+After monkey patch
+function select at 0x1924de8
+</code>
+</pre>
+
+<p>Python's runtime allows for most objects to be modified at runtime
+including modules, classes, and even functions. This is generally an
+astoudingly bad idea since it creates an "implicit side-effect" that is
+most often extremely difficult to debug if problems occur, nevertheless
+in extreme situations where a library needs to alter the fundamental
+behavior of Python itself monkey patches can be used. In this case gevent
+is capable of patching most of the blocking system calls in the standard
+library including those in <code>socket</code>, <code>ssl</code>, <code>threading</code> and
+<code>select</code> modules to instead behave cooperatively.</p>
+<p>For example, the Redis python bindings normally uses regular tcp
+sockets to communicate with the <code>redis-server</code> instance. Simply
+by invoking <code>gevent.monkey.patch_all()</code> we can make the redis
+bindings schedule requests cooperatively and work with the rest
+of our gevent stack.</p>
+<p>This lets us integrate libraries that would not normally work with
+gevent without ever writing a single line of code. While monkey-patching
+is still evil, in this case it is a "useful evil".</p>
+<h1 id="data-structures">Data Structures</h1>
+<h2 id="events">Events</h2>
+<p>Events are a form of asynchronous communication between
+Greenlets.</p>
+<pre>
+<code class="python">import gevent
+from gevent.event import Event
+
+'''
+Illustrates the use of events
+'''
+
+evt = Event()
+
+def setter():
+    '''After 3 seconds, wake all threads waiting on the value of evt'''
+    print('A: Hey wait for me, I have to do something')
+    gevent.sleep(3)
+    print("Ok, I'm done")
+    evt.set()
+
+def waiter():
+    '''After 3 seconds the get call will unblock'''
+    print("I'll wait for you")
+    evt.wait()  # blocking
+    print("It's about time")
+
+def main():
+    gevent.joinall([
+        gevent.spawn(setter),
+        gevent.spawn(waiter),
+        gevent.spawn(waiter),
+        gevent.spawn(waiter),
+        gevent.spawn(waiter),
+        gevent.spawn(waiter)
+    ])
+
+if __name__ == '__main__': main()
+
+</code>
+</pre>
+
+<p>An extension of the Event object is the AsyncResult which
+allows you to send a value along with the wakeup call. This is
+sometimes called a future or a deferred, since it holds a
+reference to a future value that can be set on an arbitrary time
+schedule.</p>
+<pre>
+<code class="python">import gevent
+from gevent.event import AsyncResult
+a = AsyncResult()
+
+def setter():
+    """
+    After 3 seconds set the result of a.
+    """
+    gevent.sleep(3)
+    a.set('Hello!')
+
+def waiter():
+    """
+    After 3 seconds the get call will unblock after the setter
+    puts a value into the AsyncResult.
+    """
+    print(a.get())
+
+gevent.joinall([
+    gevent.spawn(setter),
+    gevent.spawn(waiter),
+])
+
+</code>
+</pre>
+
+<h2 id="queues">Queues</h2>
+<p>Queues are ordered sets of data that have the usual <code>put</code> / <code>get</code>
+operations but are written in a way such that they can be safely
+manipulated across Greenlets.</p>
+<p>For example if one Greenlet grabs an item off of the queue, the
+same item will not be grabbed by another Greenlet executing
+simultaneously.</p>
+<pre><code class="python">
+import gevent
+from gevent.queue import Queue
+
+tasks = Queue()
+
+def worker(n):
+    while not tasks.empty():
+        task = tasks.get()
+        print('Worker %s got task %s' % (n, task))
+        gevent.sleep(0)
+
+    print('Quitting time!')
+
+def boss():
+    for i in xrange(1,25):
+        tasks.put_nowait(i)
+
+gevent.spawn(boss).join()
+
+gevent.joinall([
+    gevent.spawn(worker, 'steve'),
+    gevent.spawn(worker, 'john'),
+    gevent.spawn(worker, 'nancy'),
+])
+</pre>
+
+<p></code>
+<pre><code class="python">
+Worker steve got task 1
+Worker john got task 2
+Worker nancy got task 3
+Worker steve got task 4
+Worker john got task 5
+Worker nancy got task 6
+Worker steve got task 7
+Worker john got task 8
+Worker nancy got task 9
+Worker steve got task 10
+Worker john got task 11
+Worker nancy got task 12
+Worker steve got task 13
+Worker john got task 14
+Worker nancy got task 15
+Worker steve got task 16
+Worker john got task 17
+Worker nancy got task 18
+Worker steve got task 19
+Worker john got task 20
+Worker nancy got task 21
+Worker steve got task 22
+Worker john got task 23
+Worker nancy got task 24
+Quitting time!
+Quitting time!
+Quitting time!
+</pre></code></p>
+<p>Queues can also block on either <code>put</code> or <code>get</code> as the need arises.</p>
+<p>Each of the <code>put</code> and <code>get</code> operations has a non-blocking
+counterpart, <code>put_nowait</code> and
+<code>get_nowait</code> which will not block, but instead raise
+either <code>gevent.queue.Empty</code> or
+<code>gevent.queue.Full</code> if the operation is not possible.</p>
+<p>In this example we have the boss running simultaneously to the
+workers and have a restriction on the Queue preventing it from containing
+more than three elements. This restriction means that the <code>put</code>
+operation will block until there is space on the queue.
+Conversely the <code>get</code> operation will block if there are
+no elements on the queue to fetch, it also takes a timeout
+argument to allow for the queue to exit with the exception
+<code>gevent.queue.Empty</code> if no work can be found within the
+time frame of the Timeout.</p>
+<pre><code class="python">
+import gevent
+from gevent.queue import Queue, Empty
+
+tasks = Queue(maxsize=3)
+
+def worker(name):
+    try:
+        while True:
+            task = tasks.get(timeout=1) # decrements queue size by 1
+            print('Worker %s got task %s' % (name, task))
+            gevent.sleep(0)
+    except Empty:
+        print('Quitting time!')
+
+def boss():
+    """
+    Boss will wait to hand out work until an individual worker is
+    free since the maxsize of the task queue is 3.
+    """
+
+    for i in xrange(1,10):
+        tasks.put(i)
+    print('Assigned all work in iteration 1')
+
+    for i in xrange(10,20):
+        tasks.put(i)
+    print('Assigned all work in iteration 2')
+
+gevent.joinall([
+    gevent.spawn(boss),
+    gevent.spawn(worker, 'steve'),
+    gevent.spawn(worker, 'john'),
+    gevent.spawn(worker, 'bob'),
+])
+</pre>
+
+<p></code>
+<pre><code class="python">
+Worker steve got task 1
+Worker john got task 2
+Worker bob got task 3
+Worker steve got task 4
+Worker john got task 5
+Worker bob got task 6
+Assigned all work in iteration 1
+Worker steve got task 7
+Worker john got task 8
+Worker bob got task 9
+Worker steve got task 10
+Worker john got task 11
+Worker bob got task 12
+Worker steve got task 13
+Worker john got task 14
+Worker bob got task 15
+Worker steve got task 16
+Worker john got task 17
+Worker bob got task 18
+Assigned all work in iteration 2
+Worker steve got task 19
+Quitting time!
+Quitting time!
+Quitting time!
+</pre></code></p>
+<h2 id="groups-and-pools">Groups and Pools</h2>
+<p>A group is a collection of running greenlets which are managed
+and scheduled together as group. It also doubles as parallel
+dispatcher that mirrors the Python <code>multiprocessing</code> library.</p>
+<pre><code class="python">
+import gevent
+from gevent.pool import Group
+
+def talk(msg):
+    for i in xrange(3):
+        print(msg)
+
+g1 = gevent.spawn(talk, 'bar')
+g2 = gevent.spawn(talk, 'foo')
+g3 = gevent.spawn(talk, 'fizz')
+
+group = Group()
+group.add(g1)
+group.add(g2)
+group.join()
+
+group.add(g3)
+group.join()
+</pre>
+
+<p></code>
+<pre><code class="python">
+bar
+bar
+bar
+foo
+foo
+foo
+fizz
+fizz
+fizz
+</pre></code></p>
+<p>This is very useful for managing groups of asynchronous tasks.</p>
+<p>As mentioned above, <code>Group</code> also provides an API for dispatching
+jobs to grouped greenlets and collecting their results in various
+ways.</p>
+<pre><code class="python">
+import gevent
+from gevent import getcurrent
+from gevent.pool import Group
+
+group = Group()
+
+def hello_from(n):
+    print('Size of group %s' % len(group))
+    print('Hello from Greenlet %s' % id(getcurrent()))
+
+group.map(hello_from, xrange(3))
+
+def intensive(n):
+    gevent.sleep(3 - n)
+    return 'task', n
+
+print('Ordered')
+
+ogroup = Group()
+for i in ogroup.imap(intensive, xrange(3)):
+    print(i)
+
+print('Unordered')
+
+igroup = Group()
+for i in igroup.imap_unordered(intensive, xrange(3)):
+    print(i)
+
+</pre>
+
+<p></code>
+<pre><code class="python">
+Size of group 3
+Hello from Greenlet 139643393732848
+Size of group 3
+Hello from Greenlet 139643393733968
+Size of group 3
+Hello from Greenlet 139643393733488
+Ordered
+('task', 0)
+('task', 1)
+('task', 2)
+Unordered
+('task', 2)
+('task', 1)
+('task', 0)
+</pre></code></p>
+<p>A pool is a structure designed for handling dynamic numbers of
+greenlets which need to be concurrency-limited.  This is often
+desirable in cases where one wants to do many network or IO bound
+tasks in parallel.</p>
+<pre><code class="python">
+import gevent
+from gevent.pool import Pool
+
+pool = Pool(2)
+
+def hello_from(n):
+    print('Size of pool %s' % len(pool))
+
+pool.map(hello_from, xrange(3))
+</pre>
+
+<p></code>
+<pre><code class="python">
+Size of pool 2
+Size of pool 2
+Size of pool 1
+</pre></code></p>
+<p>Often when building gevent driven services one will center the
+entire service around a pool structure. An example might be a
+class which polls on various sockets.</p>
+<pre>
+<code class="python">from gevent.pool import Pool
+
+class SocketPool(object):
+
+    def __init__(self):
+        self.pool = Pool(1000)
+        self.pool.start()
+
+    def listen(self, socket):
+        while True:
+            socket.recv()
+
+    def add_handler(self, socket):
+        if self.pool.full():
+            raise Exception("At maximum pool size")
+        else:
+            self.pool.spawn(self.listen, socket)
+
+    def shutdown(self):
+        self.pool.kill()
+
+</code>
+</pre>
+
+<h2 id="locks-and-semaphores">Locks and Semaphores</h2>
+<p>A semaphore is a low level synchronization primitive that allows
+greenlets to coordinate and limit concurrent access or execution. A
+semaphore exposes two methods, <code>acquire</code> and <code>release</code> The
+difference between the number of times a semaphore has been
+acquired and released is called the bound of the semaphore. If a
+semaphore bound reaches 0 it will block until another greenlet
+releases its acquisition.</p>
+<pre><code class="python">
+from gevent import sleep
+from gevent.pool import Pool
+from gevent.coros import BoundedSemaphore
+
+sem = BoundedSemaphore(2)
+
+def worker1(n):
+    sem.acquire()
+    print('Worker %i acquired semaphore' % n)
+    sleep(0)
+    sem.release()
+    print('Worker %i released semaphore' % n)
+
+def worker2(n):
+    with sem:
+        print('Worker %i acquired semaphore' % n)
+        sleep(0)
+    print('Worker %i released semaphore' % n)
+
+pool = Pool()
+pool.map(worker1, xrange(0,2))
+pool.map(worker2, xrange(3,6))
+</pre>
+
+<p></code>
+<pre><code class="python">
+Worker 0 acquired semaphore
+Worker 1 acquired semaphore
+Worker 0 released semaphore
+Worker 1 released semaphore
+Worker 3 acquired semaphore
+Worker 4 acquired semaphore
+Worker 3 released semaphore
+Worker 4 released semaphore
+Worker 5 acquired semaphore
+Worker 5 released semaphore
+</pre></code></p>
+<p>A semaphore with bound of 1 is known as a Lock. it provides
+exclusive execution to one greenlet. They are often used to
+ensure that resources are only in use at one time in the context
+of a program.</p>
+<h2 id="thread-locals">Thread Locals</h2>
+<p>Gevent also allows you to specify data which is local to the
+greenlet context. Internally, this is implemented as a global
+lookup which addresses a private namespace keyed by the
+greenlet's <code>getcurrent()</code> value.</p>
+<pre><code class="python">
+import gevent
+from gevent.local import local
+
+stash = local()
+
+def f1():
+    stash.x = 1
+    print(stash.x)
+
+def f2():
+    stash.y = 2
+    print(stash.y)
+
+    try:
+        stash.x
+    except AttributeError:
+        print("x is not local to f2")
+
+g1 = gevent.spawn(f1)
+g2 = gevent.spawn(f2)
+
+gevent.joinall([g1, g2])
+</pre>
+
+<p></code>
+<pre><code class="python">
+1
+2
+x is not local to f2
+</pre></code></p>
+<p>Many web frameworks that use gevent store HTTP session
+objects inside gevent thread locals. For example, using the
+Werkzeug utility library and its proxy object we can create
+Flask-style request objects.</p>
+<pre>
+<code class="python">from gevent.local import local
+from werkzeug.local import LocalProxy
+from werkzeug.wrappers import Request
+from contextlib import contextmanager
+
+from gevent.wsgi import WSGIServer
+
+_requests = local()
+request = LocalProxy(lambda: _requests.request)
+
+@contextmanager
+def sessionmanager(environ):
+    _requests.request = Request(environ)
+    yield
+    _requests.request = None
+
+def logic():
+    return "Hello " + request.remote_addr
+
+def application(environ, start_response):
+    status = '200 OK'
+
+    with sessionmanager(environ):
+        body = logic()
+
+    headers = [
+        ('Content-Type', 'text/html')
+    ]
+
+    start_response(status, headers)
+    return [body]
+
+WSGIServer(('', 8000), application).serve_forever()
+
+<code>
+</pre>
+
+<p>Flask's system is a bit more sophisticated than this example, but the
+idea of using thread locals as local session storage is nonetheless the
+same.</p>
+<h2 id="subprocess">Subprocess</h2>
+<p>As of gevent 1.0, <code>gevent.subprocess</code> -- a patched version of Python's
+<code>subprocess</code> module -- has been added. It supports cooperative waiting on
+subprocesses.</p>
+<pre>
+<code class="python">
+import gevent
+from gevent.subprocess import Popen, PIPE
+
+def cron():
+    while True:
+        print("cron")
+        gevent.sleep(0.2)
+
+g = gevent.spawn(cron)
+sub = Popen(['sleep 1; uname'], stdout=PIPE, shell=True)
+out, err = sub.communicate()
+g.kill()
+print(out.rstrip())
+</pre>
+
+<pre>
+<code class="python">
+cron
+cron
+cron
+cron
+cron
+Linux
+<code>
+</pre>
+
+<p>Many people also want to use <code>gevent</code> and <code>multiprocessing</code> together. One of
+the most obvious challenges is that inter-process communication provided by
+<code>multiprocessing</code> is not cooperative by default. Since
+<code>multiprocessing.Connection</code>-based objects (such as <code>Pipe</code>) expose their
+underlying file descriptors, <code>gevent.socket.wait_read</code> and <code>wait_write</code> can
+be used to cooperatively wait for ready-to-read/ready-to-write events before
+actually reading/writing:</p>
+<pre>
+<code class="python">
+import gevent
+from multiprocessing import Process, Pipe
+from gevent.socket import wait_read, wait_write
+
+# To Process
+a, b = Pipe()
+
+# From Process
+c, d = Pipe()
+
+def relay():
+    for i in xrange(10):
+        msg = b.recv()
+        c.send(msg + " in " + str(i))
+
+def put_msg():
+    for i in xrange(10):
+        wait_write(a.fileno())
+        a.send('hi')
+
+def get_msg():
+    for i in xrange(10):
+        wait_read(d.fileno())
+        print(d.recv())
+
+if __name__ == '__main__':
+    proc = Process(target=relay)
+    proc.start()
+
+    g1 = gevent.spawn(get_msg)
+    g2 = gevent.spawn(put_msg)
+    gevent.joinall([g1, g2], timeout=1)
+</code>
+</pre>
+
+<p>Note, however, that the combination of <code>multiprocessing</code> and gevent brings
+along certain OS-dependent pitfalls, among others:</p>
+<ul>
+<li>After <a href="http://linux.die.net/man/2/fork">forking</a> on POSIX-compliant systems
+gevent's state in the child is ill-posed. One side effect is that greenlets
+spawned before <code>multiprocessing.Process</code> creation run in both, parent and
+child process.</li>
+<li><code>a.send()</code> in <code>put_msg()</code> above might still block the calling thread
+non-cooperatively: a ready-to-write event only ensures that one byte can be
+written. The underlying buffer might be full before the attempted write is
+complete.</li>
+<li>The <code>wait_write()</code> / <code>wait_read()</code>-based approach as indicated above does
+not work on Windows (<code>IOError: 3 is not a socket (files are not supported)</code>),
+because Windows cannot watch pipes for events.</li>
+</ul>
+<p>The Python package <a href="http://pypi.python.org/pypi/gipc">gipc</a> overcomes these
+challenges for you in a largely transparent fashion on both, POSIX-compliant and
+Windows systems. It provides gevent-aware <code>multiprocessing.Process</code>-based
+child processes and gevent-cooperative inter-process communication based on
+pipes.</p>
+<h2 id="actors">Actors</h2>
+<p>The actor model is a higher level concurrency model popularized
+by the language Erlang. In short the main idea is that you have a
+collection of independent Actors which have an inbox from which
+they receive messages from other Actors. The main loop inside the
+Actor iterates through its messages and takes action according to
+its desired behavior.</p>
+<p>Gevent does not have a primitive Actor type, but we can define
+one very simply using a Queue inside of a subclassed Greenlet.</p>
+<pre>
+<code class="python">import gevent
+from gevent.queue import Queue
+
+class Actor(gevent.Greenlet):
+
+    def __init__(self):
+        self.inbox = Queue()
+        Greenlet.__init__(self)
+
+    def receive(self, message):
+        """
+        Define in your subclass.
+        """
+        raise NotImplemented()
+
+    def _run(self):
+        self.running = True
+
+        while self.running:
+            message = self.inbox.get()
+            self.receive(message)
+
+</code>
+</pre>
+
+<p>In a use case:</p>
+<pre>
+<code class="python">import gevent
+from gevent.queue import Queue
+from gevent import Greenlet
+
+class Pinger(Actor):
+    def receive(self, message):
+        print(message)
+        pong.inbox.put('ping')
+        gevent.sleep(0)
+
+class Ponger(Actor):
+    def receive(self, message):
+        print(message)
+        ping.inbox.put('pong')
+        gevent.sleep(0)
+
+ping = Pinger()
+pong = Ponger()
+
+ping.start()
+pong.start()
+
+ping.inbox.put('start')
+gevent.joinall([ping, pong])
+</code>
+</pre>
+
+<h1 id="real-world-applications">Real World Applications</h1>
+<h2 id="gevent-zeromq">Gevent ZeroMQ</h2>
+<p><a href="http://www.zeromq.org/">ZeroMQ</a> is described by its authors as
+"a socket library that acts as a concurrency framework". It is a
+very powerful messaging layer for building concurrent and
+distributed applications.</p>
+<p>ZeroMQ provides a variety of socket primitives, the simplest of
+which being a Request-Response socket pair. A socket has two
+methods of interest <code>send</code> and <code>recv</code>, both of which are
+normally blocking operations. But this is remedied by a briliant
+library by <a href="https://github.com/traviscline">Travis Cline</a> which
+uses gevent.socket to poll ZeroMQ sockets in a non-blocking
+manner.  You can install gevent-zeromq from PyPi via:  <code>pip install
+gevent-zeromq</code></p>
+<pre><code class="python">
+# Note: Remember to ``pip install pyzmq``
+import gevent
+import zmq.green as zmq
+
+# Global Context
+context = zmq.Context()
+
+def server():
+    server_socket = context.socket(zmq.REQ)
+    server_socket.bind("tcp://127.0.0.1:5000")
+
+    for request in range(1,10):
+        server_socket.send("Hello")
+        print('Switched to Server for %s' % request)
+        # Implicit context switch occurs here
+        server_socket.recv()
+
+def client():
+    client_socket = context.socket(zmq.REP)
+    client_socket.connect("tcp://127.0.0.1:5000")
+
+    for request in range(1,10):
+
+        client_socket.recv()
+        print('Switched to Client for %s' % request)
+        # Implicit context switch occurs here
+        client_socket.send("World")
+
+publisher = gevent.spawn(server)
+client    = gevent.spawn(client)
+
+gevent.joinall([publisher, client])
+
+</pre>
+
+<p></code>
+<pre><code class="python">
+Switched to Server for 1
+Switched to Client for 1
+Switched to Server for 2
+Switched to Client for 2
+Switched to Server for 3
+Switched to Client for 3
+Switched to Server for 4
+Switched to Client for 4
+Switched to Server for 5
+Switched to Client for 5
+Switched to Server for 6
+Switched to Client for 6
+Switched to Server for 7
+Switched to Client for 7
+Switched to Server for 8
+Switched to Client for 8
+Switched to Server for 9
+Switched to Client for 9
+</pre></code></p>
+<h2 id="simple-servers">Simple Servers</h2>
+<pre>
+<code class="python">
+# On Unix: Access with ``$ nc 127.0.0.1 5000``
+# On Window: Access with ``$ telnet 127.0.0.1 5000``
+
+from gevent.server import StreamServer
+
+def handle(socket, address):
+    socket.send("Hello from a telnet!\n")
+    for i in range(5):
+        socket.send(str(i) + '\n')
+    socket.close()
+
+server = StreamServer(('127.0.0.1', 5000), handle)
+server.serve_forever()
+</code>
+</pre>
+
+<h2 id="wsgi-servers">WSGI Servers</h2>
+<p>Gevent provides two WSGI servers for serving content over HTTP.
+Henceforth called <code>wsgi</code> and <code>pywsgi</code>:</p>
+<ul>
+<li>gevent.wsgi.WSGIServer</li>
+<li>gevent.pywsgi.WSGIServer</li>
+</ul>
+<p>In earlier versions of gevent before 1.0.x, gevent used libevent
+instead of libev. Libevent included a fast HTTP server which was
+used by gevent's <code>wsgi</code> server.</p>
+<p>In gevent 1.0.x there is no http server included. Instead
+<code>gevent.wsgi</code> is now an alias for the pure Python server in
+<code>gevent.pywsgi</code>.</p>
+<h2 id="streaming-servers">Streaming Servers</h2>
+<p><strong>If you are using gevent 1.0.x, this section does not apply</strong></p>
+<p>For those familiar with streaming HTTP services, the core idea is
+that in the headers we do not specify a length of the content. We
+instead hold the connection open and flush chunks down the pipe,
+prefixing each with a hex digit indicating the length of the
+chunk. The stream is closed when a size zero chunk is sent.</p>
+<pre><code>HTTP/1.1 200 OK
+Content-Type: text/plain
+Transfer-Encoding: chunked
+
+8
+&lt;p&gt;Hello
+
+9
+World&lt;/p&gt;
+
+0
+</code></pre>
+<p>The above HTTP connection could not be created in wsgi
+because streaming is not supported. It would instead have to
+buffered.</p>
+<pre>
+<code class="python">from gevent.wsgi import WSGIServer
+
+def application(environ, start_response):
+    status = '200 OK'
+    body = '&lt;p&gt;Hello World&lt;/p&gt;'
+
+    headers = [
+        ('Content-Type', 'text/html')
+    ]
+
+    start_response(status, headers)
+    return [body]
+
+WSGIServer(('', 8000), application).serve_forever()
+
+</code>
+</pre>
+
+<p>Using pywsgi we can however write our handler as a generator and
+yield the result chunk by chunk.</p>
+<pre>
+<code class="python">from gevent.pywsgi import WSGIServer
+
+def application(environ, start_response):
+    status = '200 OK'
+
+    headers = [
+        ('Content-Type', 'text/html')
+    ]
+
+    start_response(status, headers)
+    yield "&lt;p&gt;Hello"
+    yield "World&lt;/p&gt;"
+
+WSGIServer(('', 8000), application).serve_forever()
+
+</code>
+</pre>
+
+<p>But regardless, performance on Gevent servers is phenomenal
+compared to other Python servers. libev is a very vetted technology
+and its derivative servers are known to perform well at scale.</p>
+<p>To benchmark, try Apache Benchmark <code>ab</code> or see this
+<a href="http://nichol.as/benchmark-of-python-web-servers">Benchmark of Python WSGI Servers</a>
+for comparison with other servers.</p>
+<pre>
+<code class="shell">$ ab -n 10000 -c 100 http://127.0.0.1:8000/
+</code>
+</pre>
+
+<h2 id="long-polling">Long Polling</h2>
+<pre>
+<code class="python">import gevent
+from gevent.queue import Queue, Empty
+from gevent.pywsgi import WSGIServer
+import simplejson as json
+
+data_source = Queue()
+
+def producer():
+    while True:
+        data_source.put_nowait('Hello World')
+        gevent.sleep(1)
+
+def ajax_endpoint(environ, start_response):
+    status = '200 OK'
+    headers = [
+        ('Content-Type', 'application/json')
+    ]
+
+    start_response(status, headers)
+
+    while True:
+        try:
+            datum = data_source.get(timeout=5)
+            yield json.dumps(datum) + '\n'
+        except Empty:
+            pass
+
+gevent.spawn(producer)
+
+WSGIServer(('', 8000), ajax_endpoint).serve_forever()
+
+</code>
+</pre>
+
+<h2 id="websockets">Websockets</h2>
+<p>Websocket example which requires <a href="https://bitbucket.org/Jeffrey/gevent-websocket/src">gevent-websocket</a>.</p>
+<pre>
+<code class="python"># Simple gevent-websocket server
+import json
+import random
+
+from gevent import pywsgi, sleep
+from geventwebsocket.handler import WebSocketHandler
+
+class WebSocketApp(object):
+    '''Send random data to the websocket'''
+
+    def __call__(self, environ, start_response):
+        ws = environ['wsgi.websocket']
+        x = 0
+        while True:
+            data = json.dumps({'x': x, 'y': random.randint(1, 5)})
+            ws.send(data)
+            x += 1
+            sleep(0.5)
+
+server = pywsgi.WSGIServer(("", 10000), WebSocketApp(),
+    handler_class=WebSocketHandler)
+server.serve_forever()
+</code>
+</pre>
+
+<p>HTML Page:</p>
+<pre><code>&lt;html&gt;
+    &lt;head&gt;
+        &lt;title&gt;Minimal websocket application&lt;/title&gt;
+        &lt;script type="text/javascript" src="jquery.min.js"&gt;&lt;/script&gt;
+        &lt;script type="text/javascript"&gt;
+        $(function() {
+            // Open up a connection to our server
+            var ws = new WebSocket("ws://localhost:10000/");
+
+            // What do we do when we get a message?
+            ws.onmessage = function(evt) {
+                $("#placeholder").append('&lt;p&gt;' + evt.data + '&lt;/p&gt;')
+            }
+            // Just update our conn_status field with the connection status
+            ws.onopen = function(evt) {
+                $('#conn_status').html('&lt;b&gt;Connected&lt;/b&gt;');
+            }
+            ws.onerror = function(evt) {
+                $('#conn_status').html('&lt;b&gt;Error&lt;/b&gt;');
+            }
+            ws.onclose = function(evt) {
+                $('#conn_status').html('&lt;b&gt;Closed&lt;/b&gt;');
+            }
+        });
+    &lt;/script&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;h1&gt;WebSocket Example&lt;/h1&gt;
+        &lt;div id="conn_status"&gt;Not Connected&lt;/div&gt;
+        &lt;div id="placeholder" style="width:600px;height:300px;"&gt;&lt;/div&gt;
+    &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h2 id="chat-server">Chat Server</h2>
+<p>The final motivating example, a realtime chat room. This example
+requires <a href="http://flask.pocoo.org/">Flask</a> ( but not necessarily so, you could use Django,
+Pyramid, etc ). The corresponding Javascript and HTML files can
+be found <a href="https://github.com/sdiehl/minichat">here</a>.</p>
+<pre>
+<code class="python"># Micro gevent chatroom.
+# ----------------------
+
+from flask import Flask, render_template, request
+
+from gevent import queue
+from gevent.pywsgi import WSGIServer
+
+import simplejson as json
+
+app = Flask(__name__)
+app.debug = True
+
+rooms = {
+    'topic1': Room(),
+    'topic2': Room(),
+}
+
+users = {}
+
+class Room(object):
+
+    def __init__(self):
+        self.users = set()
+        self.messages = []
+
+    def backlog(self, size=25):
+        return self.messages[-size:]
+
+    def subscribe(self, user):
+        self.users.add(user)
+
+    def add(self, message):
+        for user in self.users:
+            print(user)
+            user.queue.put_nowait(message)
+        self.messages.append(message)
+
+class User(object):
+
+    def __init__(self):
+        self.queue = queue.Queue()
+
+@app.route('/')
+def choose_name():
+    return render_template('choose.html')
+
+@app.route('/&lt;uid&gt;')
+def main(uid):
+    return render_template('main.html',
+        uid=uid,
+        rooms=rooms.keys()
+    )
+
+@app.route('/&lt;room&gt;/&lt;uid&gt;')
+def join(room, uid):
+    user = users.get(uid, None)
+
+    if not user:
+        users[uid] = user = User()
+
+    active_room = rooms[room]
+    active_room.subscribe(user)
+    print('subscribe %s %s' % (active_room, user))
+
+    messages = active_room.backlog()
+
+    return render_template('room.html',
+        room=room, uid=uid, messages=messages)
+
+@app.route("/put/&lt;room&gt;/&lt;uid&gt;", methods=["POST"])
+def put(room, uid):
+    user = users[uid]
+    room = rooms[room]
+
+    message = request.form['message']
+    room.add(':'.join([uid, message]))
+
+    return ''
+
+@app.route("/poll/&lt;uid&gt;", methods=["POST"])
+def poll(uid):
+    try:
+        msg = users[uid].queue.get(timeout=10)
+    except queue.Empty:
+        msg = []
+    return json.dumps(msg)
+
+if __name__ == "__main__":
+    http = WSGIServer(('', 5000), app)
+    http.serve_forever()
+</code>
+</pre>
+</div>
+
+</body>
+</html>
