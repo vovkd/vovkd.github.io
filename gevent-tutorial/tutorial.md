@@ -209,7 +209,7 @@ asynchronous()
 
 ## Детерменированность
 
-Как уже говорилось ранее, гринлеты детерминированы. При одинаковых входных данных мы полчим одинаковые выходые результаты. Для примера попробуем распределить задачи между пулом из multiprocessing и сравнить результат их работы с обработкой тех же задач с помощью gevent.
+Как уже говорилось ранее, гринлеты детерминированы. При одинаковых входных данных мы получим одинаковые выходные результаты. Попробуем распределить задачи между пулом из multiprocessing и сравнить результат работы с обработкой тех же задач с помощью gevent.
 
 <pre>
 <code class="python">
@@ -231,7 +231,7 @@ run4 = [a for a in p.imap_unordered(echo, xrange(10))]
 
 print(run1 == run2 == run3 == run4)
 
-# Deterministic Gevent Pool
+# Детерменированный gevent Pool
 
 from gevent.pool import Pool
 
@@ -322,21 +322,20 @@ g.join()
 [[[end]]]
 
 
-## Greenlet State
+## Состояния гринлетов
 
-Like any other segment of code, Greenlets can fail in various
-ways. A greenlet may fail to throw an exception, fail to halt or
-consume too many system resources.
+Как и любой другой код, гринлеты могут ломаться. Гринлет может не выкинуть исключение, не остановиться вовремя или сожрать слишком много системных ресурсов. 
 
-The internal state of a greenlet is generally a time-dependent
-parameter. There are a number of flags on greenlets which let
-you monitor the state of the thread:
+Внутреннее состояние гринлета зависит от времени. Существует небольшой набор флагов для контроля за состоянием гринлета. 
 
-- ``started`` -- Boolean, indicates whether the Greenlet has been started
-- ``ready()`` -- Boolean, indicates whether the Greenlet has halted
-- ``successful()`` -- Boolean, indicates whether the Greenlet has halted and not thrown an exception
-- ``value`` -- arbitrary, the value returned by the Greenlet
-- ``exception`` -- exception, uncaught exception instance thrown inside the greenlet
+- ``started`` -- boolean, свойство, указывает запущен ли гринлет
+- ``ready()`` -- метод, возвращает boolean, указывает заквершил ли работу  
+          гринлет
+- ``successful()`` -- метод, возвращает boolean, указывает что гринлет     
+               завершился без исключений.
+- ``value`` -- необязательный, значение, которое возвращает гринлет
+- ``exception`` -- исключение, непойманное исключение, которое произошло 
+            во время исполнения гринлета
 
 [[[cog
 import gevent
@@ -353,7 +352,7 @@ loser = gevent.spawn(fail)
 print(winner.started) # True
 print(loser.started)  # True
 
-# Exceptions raised in the Greenlet, stay inside the Greenlet.
+# исключения, возникшие внутри гринлета, остаются внутри этого гринлета
 try:
     gevent.joinall([winner, loser])
 except Exception as e:
@@ -371,7 +370,6 @@ print(loser.successful())  # False
 # The exception raised in fail, will not propagate outside the
 # greenlet. A stack trace will be printed to stdout but it
 # will not unwind the stack of the parent.
-
 print(loser.exception)
 
 # It is possible though to raise the exception again outside
@@ -381,15 +379,11 @@ print(loser.exception)
 ]]]
 [[[end]]]
 
-## Program Shutdown
+## Завершение программы
 
-Greenlets that fail to yield when the main program receives a
-SIGQUIT may hold the program's execution longer than expected.
-This results in so called "zombie processes" which need to be
-killed from outside of the Python interpreter.
+Гринлеты могут пораждать "зомби"-процессы, если после получения сигнала SIGQUIT основной программой были завершены неверно.
 
-A common pattern is to listen SIGQUIT events on the main program
-and to invoke ``gevent.shutdown`` before exit.
+Общепринятый способ завершения заключается в том, чтобы после получения сигнала SIGQUIT выполнять ``gevent.shutdown``
 
 <pre>
 <code class="python">import gevent
@@ -405,10 +399,9 @@ if __name__ == '__main__':
 </code>
 </pre>
 
-## Timeouts
+## Таймауты
 
-Timeouts are a constraint on the runtime of a block of code or a
-Greenlet.
+Таймауты -- это ограничения времени исполнения блока кода или гринлета.
 
 <pre>
 <code class="python">
@@ -431,7 +424,7 @@ except Timeout:
 </code>
 </pre>
 
-They can also be used with a context manager, in a ``with`` statement.
+Их также можно использовать в контекстных менеджерах совместно с ``with`` 
 
 <pre>
 <code class="python">import gevent
@@ -447,8 +440,7 @@ with Timeout(time_to_wait, TooLong):
 </code>
 </pre>
 
-In addition, gevent also provides timeout arguments for a
-variety of Greenlet and data structure related calls. For example:
+В дополнение gevent предоставляет возможность передавать таймаут в качестве аргумента некоторых видов вызовов. Например:
 
 [[[cog
 import gevent
@@ -485,14 +477,14 @@ except Timeout:
 ]]]
 [[[end]]]
 
-## Monkeypatching
+## Обезьяний патч (Monkeypatching)
 
-Alas we come to dark corners of Gevent. I've avoided mentioning
-monkey patching up until now to try and motivate the powerful
-coroutine patterns, but the time has come to discuss the dark arts
-of monkey-patching. If you noticed above we invoked the command
-``monkey.patch_socket()``. This is a purely side-effectful command to
-modify the standard library's socket library.
+Если кто-то не в курсе что это такое, то википедия даёт такое пояснение:
+"Monkey patch (обезьяний патч) — в программировании возможность подмены методов и значений атрибутов классов программы во время её выполнения "
+
+Мы подошли к тёмной стороне gevent. Мы избегали разговора про обезьяние патчи до этого момента, чтобы показать силу шаблоны применения одновременного исполнения кода и замотивировать к его применению. Но пришло время обсудить тёмное искуство обезьяних патчей. 
+
+Если ты замечал, то раньше мы не раз вызывали ``monkey.patch_socket()`` -- это функция для модификации стандартной библиотеки для работы с сокетами.
 
 <pre>
 <code class="python">import socket
@@ -522,46 +514,32 @@ function select at 0x1924de8
 </code>
 </pre>
 
-Python's runtime allows for most objects to be modified at runtime
-including modules, classes, and even functions. This is generally an
-astoundingly bad idea since it creates an "implicit side-effect" that is
-most often extremely difficult to debug if problems occur, nevertheless
-in extreme situations where a library needs to alter the fundamental
-behavior of Python itself monkey patches can be used. In this case gevent
-is capable of patching most of the blocking system calls in the standard
-library including those in ``socket``, ``ssl``, ``threading`` and
-``select`` modules to instead behave cooperatively.
+Python позволяет модифицировать объекты прямо во время исполнения: модули, функции, классы и т.д. Вообще это плохая идея, так как можно получить неожиданные и малоприятные побочные эффекты. 
+Gevent в состоянии "пропатчить" в стандартной библиотеке большинство блокирующих системных вызовов, включая те, что находятся в библиотеках ``socket``, ``ssl``, ``threading``, ``select``. Предоставляя им возможность одновременного исполнения. 
 
-For example, the Redis python bindings normally uses regular tcp
-sockets to communicate with the ``redis-server`` instance. Simply
-by invoking ``gevent.monkey.patch_all()`` we can make the redis
-bindings schedule requests cooperatively and work with the rest
-of our gevent stack.
+К примеру, обычная библиотека для работы с Redis в Python использует обычные TCP-сокеты для общения с сервером Redis. Но после вызова  ``gevent.monkey.patch_all()`` мы получаем возможность библиотеку для работы с Redis координировать обращения к серверу и использовать для этого ``gevent``
 
-This lets us integrate libraries that would not normally work with
-gevent without ever writing a single line of code. While monkey-patching
-is still evil, in this case it is a "useful evil".
+Это позволяет нам интегрировать без единой строчки кода библиотеки, которые не умеют работать c gevent. Поэтому несмотря на всю опасность обезьяних патчей, они могут принести существенную пользу,когда применяешь их с умом.
 
-# Data Structures
+# Структуры данных
 
-## Events
+## События
 
-Events are a form of asynchronous communication between
-Greenlets.
+События  -- это форма общения между гринлетами.
 
 <pre>
 <code class="python">import gevent
 from gevent.event import Event
 
 '''
-Illustrates the use of events
+Код иллюстрирует использование событий
 '''
 
 
 evt = Event()
 
 def setter():
-    '''After 3 seconds, wake all threads waiting on the value of evt'''
+    '''Разбудить все потоки, ожидающие событие evt, через 3 сек'''
 	print('A: Hey wait for me, I have to do something')
 	gevent.sleep(3)
 	print("Ok, I'm done")
@@ -569,7 +547,7 @@ def setter():
 
 
 def waiter():
-	'''After 3 seconds the get call will unblock'''
+	'''Вызов get разблокирует потоки через 3 секунды'''
 	print("I'll wait for you")
 	evt.wait()  # blocking
 	print("It's about time")
@@ -589,11 +567,7 @@ if __name__ == '__main__': main()
 </code>
 </pre>
 
-An extension of the Event object is the AsyncResult which
-allows you to send a value along with the wakeup call. This is
-sometimes called a future or a deferred, since it holds a
-reference to a future value that can be set on an arbitrary time
-schedule.
+У объекта Event есть расширение AsyncResult, которое позволяет передавать данные вместе с пробуждающим поток вызовом. Иногда это называют future (будущее) или deffered (отложенное)  значение, так как оно связано с будущим значение, которое будет установлено в будущем в произвольном порядке.
 
 <pre>
 <code class="python">import gevent
