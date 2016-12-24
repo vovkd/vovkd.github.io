@@ -17,7 +17,7 @@
     <!-- Syntax Highlighting Theme -->
     <link rel="stylesheet" href="github.min.css">
 
-    <title>Gevent Tutorial</title>
+    <title>Введение в gevent для практикующего питониста</title>
 </head>
 <style>
 
@@ -45,13 +45,17 @@
 
     <div class="toc">
 <ul>
-<li><a href="#introduction">Introduction</a><ul>
-<li><a href="#contributors">Contributors</a></li>
+<li><a href="#_1">Введение</a><ul>
+<li><a href="#_2">Соучастники</a></li>
 </ul>
 </li>
-<li><a href="#core">Core</a><ul>
-<li><a href="#greenlets">Greenlets</a></li>
-<li><a href="#synchronous-asynchronous-execution">Synchronous &amp; Asynchronous Execution</a></li>
+<li><a href="#_3">Основы</a><ul>
+<li><a href="#_4">Параллелизм</a></li>
+<li><a href="#greenlets">Гринлеты (Greenlets)</a></li>
+<li><a href="#_5">Синхронное и асинхронное исполнение</a><ul>
+<li><a href="#greenlet">Поток исполнения Greenlet</a></li>
+</ul>
+</li>
 <li><a href="#determinism">Determinism</a></li>
 <li><a href="#spawning-greenlets">Spawning Greenlets</a></li>
 <li><a href="#greenlet-state">Greenlet State</a></li>
@@ -82,15 +86,10 @@
 </li>
 </ul>
 </div>
-<h1 id="introduction">Introduction</h1>
-<p>The structure of this tutorial assumes an intermediate level
-knowledge of Python but not much else. No knowledge of
-concurrency is expected. The goal is to give you
-the tools you need to get going with gevent, help you tame
-your existing concurrency problems and start writing asynchronous
-applications today.</p>
-<h3 id="contributors">Contributors</h3>
-<p>In chronological order of contribution:
+<h1 id="_1">Введение</h1>
+<p>Структура данного руководства предполагает средний уровень владения Python, но не больше. Никаких знаний в области параллельной обработки и конкурентных задач не требуется. Цель -- дать вам необходимые инструменты для работы с gevent, помочь приручить нынешние проблемы одновременных вычислений и начать писать асинхронные программы.</p>
+<h3 id="_2">Соучастники</h3>
+<p>В хронологическом порядке:
 <a href="http://www.stephendiehl.com">Stephen Diehl</a>
 <a href="https://github.com/jerem">J&eacute;r&eacute;my Bethmont</a>
 <a href="https://github.com/sww">sww</a>
@@ -122,34 +121,23 @@ applications today.</p>
 <a href="https://github.com/ToxicWar">Anton Larkin</a>
 <a href="https://github.com/matiasherranz-santex">Matias Herranz</a>
 <a href="http://www.bertera.it">Pietro Bertera</a></p>
-<p>Also thanks to Denis Bilenko for writing gevent and guidance in
-constructing this tutorial.</p>
-<p>This is a collaborative document published under MIT license.
-Have something to add? See a typo? Fork and issue a
-pull request <a href="https://github.com/sdiehl/gevent-tutorial">Github</a>.
-Any and all contributions are welcome.</p>
-<p>This page is also <a href="http://methane.github.com/gevent-tutorial-ja">available in Japanese</a> and <a href="http://pbertera.github.io/gevent-tutorial-it/">Italian</a>.</p>
-<h1 id="core">Core</h1>
-<h2 id="greenlets">Greenlets</h2>
-<p>The primary pattern used in gevent is the <strong>Greenlet</strong>, a
-lightweight coroutine provided to Python as a C extension module.
-Greenlets all run inside of the OS process for the main
-program but are scheduled cooperatively.</p>
-<blockquote>
-<p>Only one greenlet is ever running at any given time.</p>
-</blockquote>
-<p>This differs from any of the real parallelism constructs provided by
-<code>multiprocessing</code> or <code>threading</code> libraries which do spin processes
-and POSIX threads which are scheduled by the operating system and
-are truly parallel.</p>
-<h2 id="synchronous-asynchronous-execution">Synchronous &amp; Asynchronous Execution</h2>
-<p>The core idea of concurrency is that a larger task can be broken down
-into a collection of subtasks which are scheduled to run simultaneously
-or <em>asynchronously</em>, instead of one at a time or <em>synchronously</em>. A
-switch between the two subtasks is known as a <em>context switch</em>.</p>
-<p>A context switch in gevent is done through <em>yielding</em>. In this 
-example we have two contexts which yield to each other through invoking
-<code>gevent.sleep(0)</code>.</p>
+<p>Также спасибо Денису Биленко за создание gevent и помощь в написании этого руководства.</p>
+<h1 id="_3">Основы</h1>
+<h2 id="_4">Параллелизм</h2>
+<p>Примечание — В русскоязычной литературе нередко путаются термины «параллелизм» и «конкурентность». Оба термина означают одновременность процессов, но первый — на физическом уровне (параллельное исполнение нескольких процессов, нацеленное только на повышение скорости исполнения за счёт использования соответствующей аппаратной поддержки), а второй — на логическом (парадигма проектирования систем, идентифицирующая процессы как независимые, что в том числе позволяет их исполнять физически параллельно, но в первую очередь нацелено на упрощение написания многопоточных программ и повышение их устойчивости).</p>
+<p>В англоязычной литературе существует два понятия параллельности: Concurrency и Parallelism. Термин Concurrency будет переводиться «одновременность», а термин Parallelism будет переводиться «параллелизм». </p>
+<p><a href="https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D1%80%D0%B0%D0%BB%D0%BB%D0%B5%D0%BB%D0%B8%D0%B7%D0%BC_(%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%82%D0%B8%D0%BA%D0%B0)">ВИКИ</a></p>
+<h2 id="greenlets">Гринлеты (Greenlets)</h2>
+<p>Основной паттерн, который используется в gevent -- это Greenlet (гринлет), этакие микропотоки. Все гринлеты  запускаются внутри основного процесса программы и координируются внутри него, представляя собой некоторое подобие потоков OS, но не использующих ресурсы OS.
+Поэтому в любой момент времени работает только один гринлет.
+Изначально у гринлетов нет своего планировщика исполнения.</p>
+<p>Greenlet реализован на С в виде модуля расширения.</p>
+<p>Ссылки
+https://greenlet.readthedocs.io/en/latest/
+http://www.slideshare.net/saghul/understanding-greenlet</p>
+<h2 id="_5">Синхронное и асинхронное исполнение</h2>
+<p>Основная идея одноврменных вычислений в том, что большую задачу можно разбить на несколько маленьких подзадач и затем выполнить их либо асинхронно, либо одновременно, вместо их последовательного выполнения. Переключение между такими подзадачами называется переключением контекста (context switch)</p>
+<p>Переключение контекста в gevent сделано через использование yield. В следующем примере у нас два контекста, которые переключаются между собой с помощью вызова gevent.sleep(0)      </p>
 <pre><code class="python">
 import gevent
 
@@ -167,6 +155,7 @@ gevent.joinall([
     gevent.spawn(foo),
     gevent.spawn(bar),
 ])
+
 </pre>
 
 <p></code>
@@ -176,17 +165,13 @@ Explicit context to bar
 Explicit context switch to foo again
 Implicit context switch back to bar
 </pre></code></p>
-<p>It is illuminating to visualize the control flow of the program or walk
-through it with a debugger to see the context switches as they occur.</p>
+<p>На картинке ниже показан процесс переключения между контекстами. Его также можно отследить с использованием отладчика.</p>
 <p><img alt="Greenlet Control Flow" src="flow.gif" /></p>
-<p>The real power of gevent comes when we use it for network and IO
-bound functions which can be cooperatively scheduled. Gevent has
-taken care of all the details to ensure that your network
-libraries will implicitly yield their greenlet contexts whenever
-possible. I cannot stress enough what a powerful idiom this is.
-But maybe an example will illustrate.</p>
-<p>In this case the <code>select()</code> function is normally a blocking
-call that polls on various file descriptors.</p>
+<h3 id="greenlet">Поток исполнения Greenlet</h3>
+<p>Свои настоящие возможности gevent показывает, когда применятся для работы с сетью (network) или задачами ввода-вывода (I/O tasks), процесс выполнения которых может эффективно координироваться планировщиком.</p>
+<p>Gevent заботится обо всех деталях, гарантируя, что ваши сетевые библиотеки будут переключать свой greenlet-контекст в любой подвернувшийся для этого момент времени.</p>
+<p>Я не знаю как выразить насколько это сильная идея. Однако, может следующий пример покажет.
+В нём функция <code>select()</code>, которая обычно блокирует поток исполнения, опрашивает различные файловые дескрипторы.</p>
 <pre><code class="python">
 import time
 import gevent
@@ -226,12 +211,7 @@ Hey lets do some stuff while the greenlets poll, at 0.0 seconds
 Ended Polling: at 2.0 seconds
 Ended Polling: at 2.0 seconds
 </pre></code></p>
-<p>Another somewhat synthetic example defines a <code>task</code> function
-which is <em>non-deterministic</em>
-(i.e. its output is not guaranteed to give the same result for
-the same inputs). In this case the side effect of running the
-function is that the task pauses its execution for a random
-number of seconds.</p>
+<p>Далее очередной искусственный пример, в котором определяется недетерминированная функция <code>task</code> (т.е. результат работы этой функции не будет гарантированно тем же самым на одних и тех же входных данных). В данном случае побочный эффект заключается в том, что функция останавливает своё исполнение на случайное число секунд:</p>
 <pre><code class="python">
 import gevent
 import random
@@ -271,16 +251,16 @@ Task 7 done
 Task 8 done
 Task 9 done
 Asynchronous:
-Task 7 done
-Task 4 done
-Task 5 done
-Task 8 done
-Task 9 done
-Task 0 done
 Task 1 done
+Task 5 done
+Task 6 done
+Task 0 done
+Task 7 done
+Task 9 done
 Task 2 done
 Task 3 done
-Task 6 done
+Task 4 done
+Task 8 done
 </pre></code></p>
 <p>In the synchronous case all the tasks are run sequentially,
 which results in the main programming <em>blocking</em> (
@@ -590,7 +570,7 @@ with Timeout(time_to_wait, TooLong):
 </pre>
 
 <p>In addition, gevent also provides timeout arguments for a
-variety of Greenlet and data stucture related calls. For example:</p>
+variety of Greenlet and data structure related calls. For example:</p>
 <pre><code class="python">
 import gevent
 from gevent import Timeout
@@ -668,7 +648,7 @@ function select at 0x1924de8
 
 <p>Python's runtime allows for most objects to be modified at runtime
 including modules, classes, and even functions. This is generally an
-astoudingly bad idea since it creates an "implicit side-effect" that is
+astoundingly bad idea since it creates an "implicit side-effect" that is
 most often extremely difficult to debug if problems occur, nevertheless
 in extreme situations where a library needs to alter the fundamental
 behavior of Python itself monkey patches can be used. In this case gevent
@@ -695,6 +675,7 @@ from gevent.event import Event
 Illustrates the use of events
 '''
 
+
 evt = Event()
 
 def setter():
@@ -703,6 +684,7 @@ def setter():
     gevent.sleep(3)
     print("Ok, I'm done")
     evt.set()
+
 
 def waiter():
     '''After 3 seconds the get call will unblock'''
@@ -853,7 +835,7 @@ def worker(name):
 
 def boss():
     """
-    Boss will wait to hand out work until an individual worker is
+    Boss will wait to hand out work until a individual worker is
     free since the maxsize of the task queue is 3.
     """
 
@@ -954,6 +936,7 @@ def hello_from(n):
 
 group.map(hello_from, xrange(3))
 
+
 def intensive(n):
     gevent.sleep(3 - n)
     return 'task', n
@@ -975,11 +958,11 @@ for i in igroup.imap_unordered(intensive, xrange(3)):
 <p></code>
 <pre><code class="python">
 Size of group 3
-Hello from Greenlet 139643393732848
+Hello from Greenlet 3064533436
 Size of group 3
-Hello from Greenlet 139643393733968
+Hello from Greenlet 3064533996
 Size of group 3
-Hello from Greenlet 139643393733488
+Hello from Greenlet 3064534636
 Ordered
 ('task', 0)
 ('task', 1)
@@ -1164,6 +1147,7 @@ def application(environ, start_response):
 
 WSGIServer(('', 8000), application).serve_forever()
 
+
 <code>
 </pre>
 
@@ -1339,11 +1323,10 @@ distributed applications.</p>
 <p>ZeroMQ provides a variety of socket primitives, the simplest of
 which being a Request-Response socket pair. A socket has two
 methods of interest <code>send</code> and <code>recv</code>, both of which are
-normally blocking operations. But this is remedied by a briliant
-library by <a href="https://github.com/traviscline">Travis Cline</a> which
-uses gevent.socket to poll ZeroMQ sockets in a non-blocking
-manner.  You can install gevent-zeromq from PyPi via:  <code>pip install
-gevent-zeromq</code></p>
+normally blocking operations. But this is remedied by a brilliant
+<a href="https://github.com/tmc/gevent-zeromq">library</a> (is now part of PyZMQ)
+by <a href="https://github.com/tmc">Travis Cline</a> which uses gevent.socket
+to poll ZeroMQ sockets in a non-blocking manner.</p>
 <pre><code class="python">
 # Note: Remember to ``pip install pyzmq``
 import gevent
@@ -1534,6 +1517,7 @@ def ajax_endpoint(environ, start_response):
             yield json.dumps(datum) + '\n'
         except Empty:
             pass
+
 
 gevent.spawn(producer)
 

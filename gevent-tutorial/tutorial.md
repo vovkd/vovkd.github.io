@@ -1,17 +1,12 @@
 [TOC]
 
-# Introduction
+# Введение
 
-The structure of this tutorial assumes an intermediate level
-knowledge of Python but not much else. No knowledge of
-concurrency is expected. The goal is to give you
-the tools you need to get going with gevent, help you tame
-your existing concurrency problems and start writing asynchronous
-applications today.
+Структура данного руководства предполагает средний уровень владения Python, но не больше. Никаких знаний в области параллельной обработки и конкурентных задач не требуется. Цель -- дать вам необходимые инструменты для работы с gevent, помочь приручить нынешние проблемы одновременных вычислений и начать писать асинхронные программы.
 
-### Contributors
+### Соучастники
 
-In chronological order of contribution:
+В хронологическом порядке:
 [Stephen Diehl](http://www.stephendiehl.com)
 [J&eacute;r&eacute;my Bethmont](https://github.com/jerem)
 [sww](https://github.com/sww)
@@ -44,42 +39,35 @@ In chronological order of contribution:
 [Matias Herranz](https://github.com/matiasherranz-santex)
 [Pietro Bertera](http://www.bertera.it)
 
-Also thanks to Denis Bilenko for writing gevent and guidance in
-constructing this tutorial.
+Также спасибо Денису Биленко за создание gevent и помощь в написании этого руководства.
 
-This is a collaborative document published under MIT license.
-Have something to add? See a typo? Fork and issue a
-pull request [Github](https://github.com/sdiehl/gevent-tutorial).
-Any and all contributions are welcome.
+# Основы
 
-This page is also [available in Japanese](http://methane.github.com/gevent-tutorial-ja) and [Italian](http://pbertera.github.io/gevent-tutorial-it/).
+## Параллелизм
 
-# Core
+Примечание — В русскоязычной литературе нередко путаются термины «параллелизм» и «конкурентность». Оба термина означают одновременность процессов, но первый — на физическом уровне (параллельное исполнение нескольких процессов, нацеленное только на повышение скорости исполнения за счёт использования соответствующей аппаратной поддержки), а второй — на логическом (парадигма проектирования систем, идентифицирующая процессы как независимые, что в том числе позволяет их исполнять физически параллельно, но в первую очередь нацелено на упрощение написания многопоточных программ и повышение их устойчивости).
 
-## Greenlets
+В англоязычной литературе существует два понятия параллельности: Concurrency и Parallelism. Термин Concurrency будет переводиться «одновременность», а термин Parallelism будет переводиться «параллелизм». 
 
-The primary pattern used in gevent is the <strong>Greenlet</strong>, a
-lightweight coroutine provided to Python as a C extension module.
-Greenlets all run inside of the OS process for the main
-program but are scheduled cooperatively.
+[ВИКИ](https://ru.wikipedia.org/wiki/%D0%9F%D0%B0%D1%80%D0%B0%D0%BB%D0%BB%D0%B5%D0%BB%D0%B8%D0%B7%D0%BC_(%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%82%D0%B8%D0%BA%D0%B0))
 
-> Only one greenlet is ever running at any given time.
+## Гринлеты (Greenlets)
 
-This differs from any of the real parallelism constructs provided by
-``multiprocessing`` or ``threading`` libraries which do spin processes
-and POSIX threads which are scheduled by the operating system and
-are truly parallel.
+Основной паттерн, который используется в gevent -- это Greenlet (гринлет), этакие микропотоки. Все гринлеты  запускаются внутри основного процесса программы и координируются внутри него, представляя собой некоторое подобие потоков OS, но не использующих ресурсы OS.
+Поэтому в любой момент времени работает только один гринлет.
+Изначально у гринлетов нет своего планировщика исполнения.
 
-## Synchronous & Asynchronous Execution
+Greenlet реализован на С в виде модуля расширения.
 
-The core idea of concurrency is that a larger task can be broken down
-into a collection of subtasks which are scheduled to run simultaneously
-or *asynchronously*, instead of one at a time or *synchronously*. A
-switch between the two subtasks is known as a *context switch*.
+Ссылки
+https://greenlet.readthedocs.io/en/latest/
+http://www.slideshare.net/saghul/understanding-greenlet
 
-A context switch in gevent is done through *yielding*. In this 
-example we have two contexts which yield to each other through invoking
-``gevent.sleep(0)``.
+## Синхронное и асинхронное исполнение
+
+Основная идея одноврменных вычислений в том, что большую задачу можно разбить на несколько маленьких подзадач и затем выполнить их либо асинхронно, либо одновременно, вместо их последовательного выполнения. Переключение между такими подзадачами называется переключением контекста (context switch)
+
+Переключение контекста в gevent сделано через использование yield. В следующем примере у нас два контекста, которые переключаются между собой с помощью вызова gevent.sleep(0)      
 
 [[[cog
 import gevent
@@ -98,23 +86,22 @@ gevent.joinall([
     gevent.spawn(foo),
     gevent.spawn(bar),
 ])
+
 ]]]
 [[[end]]]
 
-It is illuminating to visualize the control flow of the program or walk
-through it with a debugger to see the context switches as they occur.
+На картинке ниже показан процесс переключения между контекстами. Его также можно отследить с использованием отладчика.
 
 ![Greenlet Control Flow](flow.gif)
 
-The real power of gevent comes when we use it for network and IO
-bound functions which can be cooperatively scheduled. Gevent has
-taken care of all the details to ensure that your network
-libraries will implicitly yield their greenlet contexts whenever
-possible. I cannot stress enough what a powerful idiom this is.
-But maybe an example will illustrate.
+### Поток исполнения Greenlet
 
-In this case the ``select()`` function is normally a blocking
-call that polls on various file descriptors.
+Свои настоящие возможности gevent показывает, когда применятся для работы с сетью (network) или задачами ввода-вывода (I/O tasks), процесс выполнения которых может эффективно координироваться планировщиком.
+
+Gevent заботится обо всех деталях, гарантируя, что ваши сетевые библиотеки будут переключать свой greenlet-контекст в любой подвернувшийся для этого момент времени.
+
+Я не знаю как выразить насколько это сильная идея. Однако, может следующий пример покажет.
+В нём функция ``select()``, которая обычно блокирует поток исполнения, опрашивает различные файловые дескрипторы.
 
 [[[cog
 import time
@@ -148,12 +135,7 @@ gevent.joinall([
 ]]]
 [[[end]]]
 
-Another somewhat synthetic example defines a ``task`` function
-which is *non-deterministic*
-(i.e. its output is not guaranteed to give the same result for
-the same inputs). In this case the side effect of running the
-function is that the task pauses its execution for a random
-number of seconds.
+Далее очередной искусственный пример, в котором определяется недетерминированная функция ``task`` (т.е. результат работы этой функции не будет гарантированно тем же самым на одних и тех же входных данных). В данном случае побочный эффект заключается в том, что функция останавливает своё исполнение на случайное число секунд:
 
 [[[cog
 import gevent
