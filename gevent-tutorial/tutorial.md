@@ -1,4 +1,5 @@
 [TOC]
+[Оригинал](http://sdiehl.github.io/gevent-tutorial/) на англисйком языке находится здесь http://sdiehl.github.io/gevent-tutorial/
 
 # Введение
 
@@ -38,6 +39,7 @@
 [Anton Larkin](https://github.com/ToxicWar)
 [Matias Herranz](https://github.com/matiasherranz-santex)
 [Pietro Bertera](http://www.bertera.it)
+[Vladimir Donets](http://vovkd.github.io/gevent-tutorial)
 
 Также спасибо Денису Биленко за создание gevent и помощь в написании этого руководства.
 
