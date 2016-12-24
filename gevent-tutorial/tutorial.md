@@ -677,9 +677,11 @@ gevent.joinall([
 
 ## Группы и объединения
 
-A group is a collection of running greenlets which are managed
-and scheduled together as group. It also doubles as parallel
-dispatcher that mirrors the Python ``multiprocessing`` library.
+Изначально этот раздел назывался "Groups & Pools". Если для слова group в русском языке есть понятный перевод, то для слова pool есть более 17 значений из которых наиболее подходит по смыслу ``объединение``.
+
+Обе структуры: и ``группа`` и ``объединение`` представлют собой способ управления несколькими гринлетами сразу. 
+
+Группа предназначена для управления набором гринлетов как одним целым. С её помощью удобно управлять целым набором асинхронных задач. Пример:
 
 [[[cog
 import gevent
