@@ -596,15 +596,11 @@ gevent.joinall([
 </code>
 </pre>
 
-## Queues
+## Очереди
 
-Queues are ordered sets of data that have the usual ``put`` / ``get``
-operations but are written in a way such that they can be safely
-manipulated across Greenlets.
+Очередь -- это упорядоченная последовательность данных, которая поддерживает ``put`` / ``get`` операции и реалиована для безопасного совместного использования гринлетами.
 
-For example if one Greenlet grabs an item off of the queue, the
-same item will not be grabbed by another Greenlet executing
-simultaneously.
+К примеру, если несколько гринлетов выполняется одновременно и при этом один из них вытащит элемент из очереди, то этот элемент станетнедоступен другим гринлетам.
 
 [[[cog
 import gevent
@@ -615,10 +611,10 @@ tasks = Queue()
 def worker(n):
     while not tasks.empty():
         task = tasks.get()
-        print('Worker %s got task %s' % (n, task))
+        print('Рабочий %s получил задание %s' % (n, task))
         gevent.sleep(0)
 
-    print('Quitting time!')
+    print('Пора заканчивать!')
 
 def boss():
     for i in xrange(1,25):
@@ -634,23 +630,12 @@ gevent.joinall([
 ]]]
 [[[end]]]
 
-Queues can also block on either ``put`` or ``get`` as the need arises.
+Очереди могут блокировать ``put`` / ``get`` операцию, если это требуется. 
 
-Each of the ``put`` and ``get`` operations has a non-blocking
-counterpart, ``put_nowait`` and
-``get_nowait`` which will not block, but instead raise
-either ``gevent.queue.Empty`` or
-``gevent.queue.Full`` if the operation is not possible.
+У put и get есть асинхронные аналоги, которые называются соответсвенно ``put_nowait`` и ``get_nowait``. Их выполнение не блокируется очередью, однако в случае невозможности выполнения операции они будут генерировать исключения ``gevent.queue.Empty`` или ``gevent.queue.Full``
 
-In this example we have the boss running simultaneously to the
-workers and have a restriction on the Queue preventing it from containing
-more than three elements. This restriction means that the ``put``
-operation will block until there is space on the queue.
-Conversely the ``get`` operation will block if there are
-no elements on the queue to fetch, it also takes a timeout
-argument to allow for the queue to exit with the exception
-``gevent.queue.Empty`` if no work can be found within the
-time frame of the Timeout.
+Ниже приведён пример, где очередь имеет глубину в 3 элемента. Благодаря этому ``boss`` будет помещать задания в ``tasks`` только до тех пор пока их количество меньше трёх. В противном случае операция put блокируется пока до тех пор, пока в очереди появится место. 
+Напротив ``get`` будет блокировать исполнение, если в очереди нет заданий. ``get`` также принимате аргумент ``timeout``, благодаря чему очередь будет выкидывать исключение ``gevent.queue.Empty``, если ``timeout`` истёк, а задач не было.
 
 [[[cog
 import gevent
@@ -690,7 +675,7 @@ gevent.joinall([
 ]]]
 [[[end]]]
 
-## Groups and Pools
+## Группы и объединения
 
 A group is a collection of running greenlets which are managed
 and scheduled together as group. It also doubles as parallel
