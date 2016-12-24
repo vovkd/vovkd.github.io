@@ -58,16 +58,16 @@
 </li>
 <li><a href="#_6">Детерменированность</a></li>
 <li><a href="#greenlets_1">Порождение гринлетов (Greenlets)</a></li>
-<li><a href="#greenlet-state">Greenlet State</a></li>
-<li><a href="#program-shutdown">Program Shutdown</a></li>
-<li><a href="#timeouts">Timeouts</a></li>
-<li><a href="#monkeypatching">Monkeypatching</a></li>
+<li><a href="#_7">Состояния гринлетов</a></li>
+<li><a href="#_8">Завершение программы</a></li>
+<li><a href="#_9">Таймауты</a></li>
+<li><a href="#monkeypatching">Обезьяний патч (Monkeypatching)</a></li>
 </ul>
 </li>
-<li><a href="#data-structures">Data Structures</a><ul>
-<li><a href="#events">Events</a></li>
-<li><a href="#queues">Queues</a></li>
-<li><a href="#groups-and-pools">Groups and Pools</a></li>
+<li><a href="#_10">Структуры данных</a><ul>
+<li><a href="#_11">События</a></li>
+<li><a href="#_12">Очереди</a></li>
+<li><a href="#_13">Группы и объединения</a></li>
 <li><a href="#locks-and-semaphores">Locks and Semaphores</a></li>
 <li><a href="#thread-locals">Thread Locals</a></li>
 <li><a href="#subprocess">Subprocess</a></li>
@@ -251,16 +251,16 @@ Task 7 done
 Task 8 done
 Task 9 done
 Asynchronous:
-Task 0 done
+Task 1 done
 Task 5 done
 Task 7 done
-Task 8 done
 Task 9 done
 Task 2 done
-Task 3 done
-Task 1 done
 Task 4 done
 Task 6 done
+Task 0 done
+Task 3 done
+Task 8 done
 </pre></code></p>
 <p>В случае синхронного исполнения все задачи выполняются последовательно, одна за другой. Это блокирует исполнение основной программы, пока исполняется каждая подзадача.</p>
 <p>Важная часть программы выше ф-я gevent.spawn, которая помещает исполнение подзадачи в greenlet-микропоток. Список инициализированных гринлетов хранится в массиве потоков, который передаётся gevent.joinall, которая блокирует исполнение основной программы для выполнения переданных ей гринлетов. Исполнение основной программы будет продолжено лишь тогда, когда будут завершены все гринлеты.</p>
@@ -302,7 +302,7 @@ asynchronous()
 </pre>
 
 <h2 id="_6">Детерменированность</h2>
-<p>Как уже говорилось ранее, гринлеты детерминированы. При одинаковых входных данных мы полчим одинаковые выходые результаты. Для примера попробуем распределить задачи между пулом из multiprocessing и сравнить результат их работы с обработкой тех же задач с помощью gevent.</p>
+<p>Как уже говорилось ранее, гринлеты детерминированы. При одинаковых входных данных мы получим одинаковые выходные результаты. Попробуем распределить задачи между пулом из multiprocessing и сравнить результат работы с обработкой тех же задач с помощью gevent.</p>
 <pre>
 <code class="python">
 import time
@@ -323,7 +323,7 @@ run4 = [a for a in p.imap_unordered(echo, xrange(10))]
 
 print(run1 == run2 == run3 == run4)
 
-# Deterministic Gevent Pool
+# Детерменированный gevent Pool
 
 from gevent.pool import Pool
 
@@ -414,19 +414,18 @@ g.join()
 <pre><code class="python">
 Hi there!
 </pre></code></p>
-<h2 id="greenlet-state">Greenlet State</h2>
-<p>Like any other segment of code, Greenlets can fail in various
-ways. A greenlet may fail to throw an exception, fail to halt or
-consume too many system resources.</p>
-<p>The internal state of a greenlet is generally a time-dependent
-parameter. There are a number of flags on greenlets which let
-you monitor the state of the thread:</p>
+<h2 id="_7">Состояния гринлетов</h2>
+<p>Как и любой другой код, гринлеты могут ломаться. Гринлет может не выкинуть исключение, не остановиться вовремя или сожрать слишком много системных ресурсов. </p>
+<p>Внутреннее состояние гринлета зависит от времени. Существует небольшой набор флагов для контроля за состоянием гринлета. </p>
 <ul>
-<li><code>started</code> -- Boolean, indicates whether the Greenlet has been started</li>
-<li><code>ready()</code> -- Boolean, indicates whether the Greenlet has halted</li>
-<li><code>successful()</code> -- Boolean, indicates whether the Greenlet has halted and not thrown an exception</li>
-<li><code>value</code> -- arbitrary, the value returned by the Greenlet</li>
-<li><code>exception</code> -- exception, uncaught exception instance thrown inside the greenlet</li>
+<li><code>started</code> -- boolean, свойство, указывает запущен ли гринлет</li>
+<li><code>ready()</code> -- метод, возвращает boolean, указывает заквершил ли работу<br />
+          гринлет</li>
+<li><code>successful()</code> -- метод, возвращает boolean, указывает что гринлет   <br />
+               завершился без исключений.</li>
+<li><code>value</code> -- необязательный, значение, которое возвращает гринлет</li>
+<li><code>exception</code> -- исключение, непойманное исключение, которое произошло 
+            во время исполнения гринлета</li>
 </ul>
 <pre><code class="python">
 import gevent
@@ -443,7 +442,7 @@ loser = gevent.spawn(fail)
 print(winner.started) # True
 print(loser.started)  # True
 
-# Exceptions raised in the Greenlet, stay inside the Greenlet.
+# исключения, возникшие внутри гринлета, остаются внутри этого гринлета
 try:
     gevent.joinall([winner, loser])
 except Exception as e:
@@ -461,7 +460,6 @@ print(loser.successful())  # False
 # The exception raised in fail, will not propagate outside the
 # greenlet. A stack trace will be printed to stdout but it
 # will not unwind the stack of the parent.
-
 print(loser.exception)
 
 # It is possible though to raise the exception again outside
@@ -482,13 +480,9 @@ True
 False
 You fail at failing.
 </pre></code></p>
-<h2 id="program-shutdown">Program Shutdown</h2>
-<p>Greenlets that fail to yield when the main program receives a
-SIGQUIT may hold the program's execution longer than expected.
-This results in so called "zombie processes" which need to be
-killed from outside of the Python interpreter.</p>
-<p>A common pattern is to listen SIGQUIT events on the main program
-and to invoke <code>gevent.shutdown</code> before exit.</p>
+<h2 id="_8">Завершение программы</h2>
+<p>Гринлеты могут пораждать "зомби"-процессы, если после получения сигнала SIGQUIT основной программой были завершены неверно.</p>
+<p>Общепринятый способ завершения заключается в том, чтобы после получения сигнала SIGQUIT выполнять <code>gevent.shutdown</code></p>
 <pre>
 <code class="python">import gevent
 import signal
@@ -503,9 +497,8 @@ if __name__ == '__main__':
 </code>
 </pre>
 
-<h2 id="timeouts">Timeouts</h2>
-<p>Timeouts are a constraint on the runtime of a block of code or a
-Greenlet.</p>
+<h2 id="_9">Таймауты</h2>
+<p>Таймауты -- это ограничения времени исполнения блока кода или гринлета.</p>
 <pre>
 <code class="python">
 import gevent
@@ -527,7 +520,7 @@ except Timeout:
 </code>
 </pre>
 
-<p>They can also be used with a context manager, in a <code>with</code> statement.</p>
+<p>Их также можно использовать в контекстных менеджерах совместно с <code>with</code> </p>
 <pre>
 <code class="python">import gevent
 from gevent import Timeout
@@ -542,8 +535,7 @@ with Timeout(time_to_wait, TooLong):
 </code>
 </pre>
 
-<p>In addition, gevent also provides timeout arguments for a
-variety of Greenlet and data structure related calls. For example:</p>
+<p>В дополнение gevent предоставляет возможность передавать таймаут в качестве аргумента некоторых видов вызовов. Например:</p>
 <pre><code class="python">
 import gevent
 from gevent import Timeout
@@ -584,13 +576,11 @@ Thread 1 timed out
 Thread 2 timed out
 Thread 3 timed out
 </pre></code></p>
-<h2 id="monkeypatching">Monkeypatching</h2>
-<p>Alas we come to dark corners of Gevent. I've avoided mentioning
-monkey patching up until now to try and motivate the powerful
-coroutine patterns, but the time has come to discuss the dark arts
-of monkey-patching. If you noticed above we invoked the command
-<code>monkey.patch_socket()</code>. This is a purely side-effectful command to
-modify the standard library's socket library.</p>
+<h2 id="monkeypatching">Обезьяний патч (Monkeypatching)</h2>
+<p>Если кто-то не в курсе что это такое, то википедия даёт такое пояснение:
+"Monkey patch (обезьяний патч) — в программировании возможность подмены методов и значений атрибутов классов программы во время её выполнения "</p>
+<p>Мы подошли к тёмной стороне gevent. Мы избегали разговора про обезьяние патчи до этого момента, чтобы показать силу шаблоны применения одновременного исполнения кода и замотивировать к его применению. Но пришло время обсудить тёмное искуство обезьяних патчей. </p>
+<p>Если ты замечал, то раньше мы не раз вызывали <code>monkey.patch_socket()</code> -- это функция для модификации стандартной библиотеки для работы с сокетами.</p>
 <pre>
 <code class="python">import socket
 print(socket.socket)
@@ -619,40 +609,26 @@ function select at 0x1924de8
 </code>
 </pre>
 
-<p>Python's runtime allows for most objects to be modified at runtime
-including modules, classes, and even functions. This is generally an
-astoundingly bad idea since it creates an "implicit side-effect" that is
-most often extremely difficult to debug if problems occur, nevertheless
-in extreme situations where a library needs to alter the fundamental
-behavior of Python itself monkey patches can be used. In this case gevent
-is capable of patching most of the blocking system calls in the standard
-library including those in <code>socket</code>, <code>ssl</code>, <code>threading</code> and
-<code>select</code> modules to instead behave cooperatively.</p>
-<p>For example, the Redis python bindings normally uses regular tcp
-sockets to communicate with the <code>redis-server</code> instance. Simply
-by invoking <code>gevent.monkey.patch_all()</code> we can make the redis
-bindings schedule requests cooperatively and work with the rest
-of our gevent stack.</p>
-<p>This lets us integrate libraries that would not normally work with
-gevent without ever writing a single line of code. While monkey-patching
-is still evil, in this case it is a "useful evil".</p>
-<h1 id="data-structures">Data Structures</h1>
-<h2 id="events">Events</h2>
-<p>Events are a form of asynchronous communication between
-Greenlets.</p>
+<p>Python позволяет модифицировать объекты прямо во время исполнения: модули, функции, классы и т.д. Вообще это плохая идея, так как можно получить неожиданные и малоприятные побочные эффекты. 
+Gevent в состоянии "пропатчить" в стандартной библиотеке большинство блокирующих системных вызовов, включая те, что находятся в библиотеках <code>socket</code>, <code>ssl</code>, <code>threading</code>, <code>select</code>. Предоставляя им возможность одновременного исполнения. </p>
+<p>К примеру, обычная библиотека для работы с Redis в Python использует обычные TCP-сокеты для общения с сервером Redis. Но после вызова  <code>gevent.monkey.patch_all()</code> мы получаем возможность библиотеку для работы с Redis координировать обращения к серверу и использовать для этого <code>gevent</code></p>
+<p>Это позволяет нам интегрировать без единой строчки кода библиотеки, которые не умеют работать c gevent. Поэтому несмотря на всю опасность обезьяних патчей, они могут принести существенную пользу,когда применяешь их с умом.</p>
+<h1 id="_10">Структуры данных</h1>
+<h2 id="_11">События</h2>
+<p>События  -- это форма общения между гринлетами.</p>
 <pre>
 <code class="python">import gevent
 from gevent.event import Event
 
 '''
-Illustrates the use of events
+Код иллюстрирует использование событий
 '''
 
 
 evt = Event()
 
 def setter():
-    '''After 3 seconds, wake all threads waiting on the value of evt'''
+    '''Разбудить все потоки, ожидающие событие evt, через 3 сек'''
     print('A: Hey wait for me, I have to do something')
     gevent.sleep(3)
     print("Ok, I'm done")
@@ -660,7 +636,7 @@ def setter():
 
 
 def waiter():
-    '''After 3 seconds the get call will unblock'''
+    '''Вызов get разблокирует потоки через 3 секунды'''
     print("I'll wait for you")
     evt.wait()  # blocking
     print("It's about time")
@@ -680,11 +656,7 @@ if __name__ == '__main__': main()
 </code>
 </pre>
 
-<p>An extension of the Event object is the AsyncResult which
-allows you to send a value along with the wakeup call. This is
-sometimes called a future or a deferred, since it holds a
-reference to a future value that can be set on an arbitrary time
-schedule.</p>
+<p>У объекта Event есть расширение AsyncResult, которое позволяет передавать данные вместе с пробуждающим поток вызовом. Иногда это называют future (будущее) или deffered (отложенное)  значение, так как оно связано с будущим значение, которое будет установлено в будущем в произвольном порядке.</p>
 <pre>
 <code class="python">import gevent
 from gevent.event import AsyncResult
@@ -712,13 +684,9 @@ gevent.joinall([
 </code>
 </pre>
 
-<h2 id="queues">Queues</h2>
-<p>Queues are ordered sets of data that have the usual <code>put</code> / <code>get</code>
-operations but are written in a way such that they can be safely
-manipulated across Greenlets.</p>
-<p>For example if one Greenlet grabs an item off of the queue, the
-same item will not be grabbed by another Greenlet executing
-simultaneously.</p>
+<h2 id="_12">Очереди</h2>
+<p>Очередь -- это упорядоченная последовательность данных, которая поддерживает <code>put</code> / <code>get</code> операции и реалиована для безопасного совместного использования гринлетами.</p>
+<p>К примеру, если несколько гринлетов выполняется одновременно и при этом один из них вытащит элемент из очереди, то этот элемент станетнедоступен другим гринлетам.</p>
 <pre><code class="python">
 import gevent
 from gevent.queue import Queue
@@ -728,10 +696,10 @@ tasks = Queue()
 def worker(n):
     while not tasks.empty():
         task = tasks.get()
-        print('Worker %s got task %s' % (n, task))
+        print('Рабочий %s получил задание %s' % (n, task))
         gevent.sleep(0)
 
-    print('Quitting time!')
+    print('Пора заканчивать!')
 
 def boss():
     for i in xrange(1,25):
@@ -748,49 +716,38 @@ gevent.joinall([
 
 <p></code>
 <pre><code class="python">
-Worker steve got task 1
-Worker john got task 2
-Worker nancy got task 3
-Worker steve got task 4
-Worker john got task 5
-Worker nancy got task 6
-Worker steve got task 7
-Worker john got task 8
-Worker nancy got task 9
-Worker steve got task 10
-Worker john got task 11
-Worker nancy got task 12
-Worker steve got task 13
-Worker john got task 14
-Worker nancy got task 15
-Worker steve got task 16
-Worker john got task 17
-Worker nancy got task 18
-Worker steve got task 19
-Worker john got task 20
-Worker nancy got task 21
-Worker steve got task 22
-Worker john got task 23
-Worker nancy got task 24
-Quitting time!
-Quitting time!
-Quitting time!
+Рабочий steve получил задание 1
+Рабочий john получил задание 2
+Рабочий nancy получил задание 3
+Рабочий steve получил задание 4
+Рабочий john получил задание 5
+Рабочий nancy получил задание 6
+Рабочий steve получил задание 7
+Рабочий john получил задание 8
+Рабочий nancy получил задание 9
+Рабочий steve получил задание 10
+Рабочий john получил задание 11
+Рабочий nancy получил задание 12
+Рабочий steve получил задание 13
+Рабочий john получил задание 14
+Рабочий nancy получил задание 15
+Рабочий steve получил задание 16
+Рабочий john получил задание 17
+Рабочий nancy получил задание 18
+Рабочий steve получил задание 19
+Рабочий john получил задание 20
+Рабочий nancy получил задание 21
+Рабочий steve получил задание 22
+Рабочий john получил задание 23
+Рабочий nancy получил задание 24
+Пора заканчивать!
+Пора заканчивать!
+Пора заканчивать!
 </pre></code></p>
-<p>Queues can also block on either <code>put</code> or <code>get</code> as the need arises.</p>
-<p>Each of the <code>put</code> and <code>get</code> operations has a non-blocking
-counterpart, <code>put_nowait</code> and
-<code>get_nowait</code> which will not block, but instead raise
-either <code>gevent.queue.Empty</code> or
-<code>gevent.queue.Full</code> if the operation is not possible.</p>
-<p>In this example we have the boss running simultaneously to the
-workers and have a restriction on the Queue preventing it from containing
-more than three elements. This restriction means that the <code>put</code>
-operation will block until there is space on the queue.
-Conversely the <code>get</code> operation will block if there are
-no elements on the queue to fetch, it also takes a timeout
-argument to allow for the queue to exit with the exception
-<code>gevent.queue.Empty</code> if no work can be found within the
-time frame of the Timeout.</p>
+<p>Очереди могут блокировать <code>put</code> / <code>get</code> операцию, если это требуется. </p>
+<p>У put и get есть асинхронные аналоги, которые называются соответсвенно <code>put_nowait</code> и <code>get_nowait</code>. Их выполнение не блокируется очередью, однако в случае невозможности выполнения операции они будут генерировать исключения <code>gevent.queue.Empty</code> или <code>gevent.queue.Full</code></p>
+<p>Ниже приведён пример, где очередь имеет глубину в 3 элемента. Благодаря этому <code>boss</code> будет помещать задания в <code>tasks</code> только до тех пор пока их количество меньше трёх. В противном случае операция put блокируется пока до тех пор, пока в очереди появится место. 
+Напротив <code>get</code> будет блокировать исполнение, если в очереди нет заданий. <code>get</code> также принимате аргумент <code>timeout</code>, благодаря чему очередь будет выкидывать исключение <code>gevent.queue.Empty</code>, если <code>timeout</code> истёк, а задач не было.</p>
 <pre><code class="python">
 import gevent
 from gevent.queue import Queue, Empty
@@ -855,7 +812,7 @@ Quitting time!
 Quitting time!
 Quitting time!
 </pre></code></p>
-<h2 id="groups-and-pools">Groups and Pools</h2>
+<h2 id="_13">Группы и объединения</h2>
 <p>A group is a collection of running greenlets which are managed
 and scheduled together as group. It also doubles as parallel
 dispatcher that mirrors the Python <code>multiprocessing</code> library.</p>
@@ -931,11 +888,11 @@ for i in igroup.imap_unordered(intensive, xrange(3)):
 <p></code>
 <pre><code class="python">
 Size of group 3
-Hello from Greenlet 3065057724
+Hello from Greenlet 3064947132
 Size of group 3
-Hello from Greenlet 3065058284
+Hello from Greenlet 3064947692
 Size of group 3
-Hello from Greenlet 3065058924
+Hello from Greenlet 3064948332
 Ordered
 ('task', 0)
 ('task', 1)
