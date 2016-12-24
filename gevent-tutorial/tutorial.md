@@ -164,31 +164,14 @@ asynchronous()
 ]]]
 [[[end]]]
 
-In the synchronous case all the tasks are run sequentially,
-which results in the main programming *blocking* (
-i.e. pausing the execution of the main program )
-while each task executes.
+ В случае синхронного исполнения все задачи выполняются последовательно, одна за другой. Это блокирует исполнение основной программы, пока исполняется каждая подзадача.
 
-The important parts of the program are the
-``gevent.spawn`` which wraps up the given function
-inside of a Greenlet thread. The list of initialized greenlets
-are stored in the array ``threads`` which is passed to
-the ``gevent.joinall`` function which blocks the current
-program to run all the given greenlets. The execution will step
-forward only when all the greenlets terminate.
+Важная часть программы выше ф-я gevent.spawn, которая помещает исполнение подзадачи в greenlet-микропоток. Список инициализированных гринлетов хранится в массиве потоков, который передаётся gevent.joinall, которая блокирует исполнение основной программы для выполнения переданных ей гринлетов. Исполнение основной программы будет продолжено лишь тогда, когда будут завершены все гринлеты.
 
-The important fact to notice is that the order of execution in
-the async case is essentially random and that the total execution
-time in the async case is much less than the sync case. In fact
-the maximum time for the synchronous case to complete is when
-each tasks pauses for 0.002 seconds resulting in a 0.02 seconds for the
-whole queue. In the async case the maximum runtime is roughly 0.002
-seconds since none of the tasks block the execution of the
-others.
+Следует отметить, что порядок выполнения в случае асинхронного исполнения абсолютно случайный, а также что общее время выполнения 
+в асинхронном варианте значительно меньше времени выполнения списка задач синхронно. К примеру, общее время исполнения синхронного кода, когда каждая подзадача спит "0.002" сек. равно 0.02 сек, а время выполнение той же очереди задач асинхронно равняется 0.002, так как в этом случае ни одна из подзадач не блокирует выполнение другх.
 
-In a more common use case, asynchronously fetching data from a server,
-the runtime of ``fetch()`` will differ between
-requests, depending on the load on the remote server at the time of the request.
+В более типичном случае, когда мы получаем данные с сервера асинхронно, время выполнения fetch() для каждого запроса будет различаться и зависеть от времени исполнения запроса и общей нагрузки на этот сервер:
 
 <pre><code class="python">import gevent.monkey
 gevent.monkey.patch_socket()
@@ -224,12 +207,9 @@ asynchronous()
 </code>
 </pre>
 
-## Determinism
+## Детерменированность
 
-As mentioned previously, greenlets are deterministic. Given the same
-configuration of greenlets and the same set of inputs, they always
-produce the same output. For example, let's spread a task across a
-multiprocessing pool and compare its results to the one of a gevent pool.
+Как уже говорилось ранее, гринлеты детерминированы. При одинаковых входных данных мы полчим одинаковые выходые результаты. Для примера попробуем распределить задачи между пулом из multiprocessing и сравнить результат их работы с обработкой тех же задач с помощью gevent.
 
 <pre>
 <code class="python">
@@ -266,33 +246,20 @@ print(run1 == run2 == run3 == run4)
 </pre>
 
 <pre>
-<code class="python">False
-True</code>
+<code class="python">>>> False # multiprocessing pool
+>>> True  # gevent pool</code>
 </pre>
 
-Even though gevent is normally deterministic, sources of
-non-determinism can creep into your program when you begin to
-interact with outside services such as sockets and files. Thus
-even though green threads are a form of "deterministic
-concurrency", they still can experience some of the same problems
-that POSIX threads and processes experience.
+Несмотря на то, что gevent обычно детерминирован, источники недетерминированности могут закрасться в программу в те моменты, когда она начинает взаимодействовать с внешними сервисами. Такими как сокеты или файлы. 
+Поэтому несмотря на то, что "зеленые потоки" (greenlets, green threads) представляют собой детерминированную форму одновременного исполнения, они все равно могут иметь те же проблемы, что потоки и процессы POSIX.
 
-The perennial problem involved with concurrency is known as a
-*race condition*. Simply put, a race condition occurs when two concurrent threads
-/ processes depend on some shared resource but also attempt to
-modify this value. This results in resources which values become
-time-dependent on the execution order. This is a problem, and in
-general one should very much try to avoid race conditions since
-they result in a globally non-deterministic program behavior.
+Одной из вечных проблем одновременного исполнения является "состояние гонки" (race condition). Она возникает, когда два одновременно выполняющихся потока/процесса имеют общий ресурс, который они хотят изменить. В итоге содержание этих ресурсов становятся зависимым от порядка исполнения задач в общих для них процессах/потоках. Это серьезная проблема, поэтому следует избегать её возникновения, так как она ведёт к возникновению общей недетерменированности результата исполнения программы.
 
-The best approach to this is to simply avoid all global state at all
-times. Global state and import-time side effects will always come
-back to bite you!
+Одним из подходов к решению проблемы "гонки" является отказ от использования всех глобальных состояний, которые вместе с побочными эффектами на этапе импорта (import-time side effects) всегда вернуться, чтобы создать проблем.
 
-## Spawning Greenlets
+## Порождение гринлетов (Greenlets)
 
-gevent provides a few wrappers around Greenlet initialization.
-Some of the most common patterns are:
+Gevent предоставляет несколько обёрток вокруг инициализации гринлетов. Самыми часто используемыми шаблонами являются:
 
 [[[cog
 import gevent
@@ -300,32 +267,38 @@ from gevent import Greenlet
 
 def foo(message, n):
     """
-    Each thread will be passed the message, and n arguments
-    in its initialization.
+    Каждый поток будет получать при инициализации
+    сообщение и время на которое надо заснуть.
     """
     gevent.sleep(n)
     print(message)
 
-# Initialize a new Greenlet instance running the named function
+# Инициализация экземпляра Greenlet c передачей именнованой функции и её аргументов
 # foo
 thread1 = Greenlet.spawn(foo, "Hello", 1)
 
-# Wrapper for creating and running a new Greenlet from the named
-# function foo, with the passed arguments
+# Инициализация Greenlet с помощью обёртки от gevent
+# функция foo с аргументами
 thread2 = gevent.spawn(foo, "I live!", 2)
 
-# Lambda expressions
+# Инициализация с помощью безымянной лямбда-функции
 thread3 = gevent.spawn(lambda x: (x+1), 2)
 
 threads = [thread1, thread2, thread3]
 
-# Block until all threads complete.
+# Блокировка до момента, когда задачи во всех потоках будут завершены
 gevent.joinall(threads)
 ]]]
 [[[end]]]
 
-In addition to using the base Greenlet class, you may also subclass
-Greenlet class and override the ``_run`` method.
+<pre>
+<code class="python">
+>>> Hello
+>>> I live!  
+</code>
+</pre>
+
+В дополнение к использованию класса Greenlet можно также унаследоваться от него и переопределить метод ``_run``
 
 [[[cog
 import gevent
