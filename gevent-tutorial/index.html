@@ -90,7 +90,7 @@
 </ul>
 </div>
 <h1 id="_1">Введение</h1>
-<p><a href="http://sdiehl.github.io/gevent-tutorial/">Оригинал</a> на англисйком языке находится здесь http://sdiehl.github.io/gevent-tutorial/</p>
+<p><a href="http://sdiehl.github.io/gevent-tutorial/">Оригинал</a> на англисйком языке находится здесь <a href="http://sdiehl.github.io/gevent-tutorial/">http://sdiehl.github.io/gevent-tutorial/</a></p>
 <p>Структура данного руководства предполагает средний уровень владения Python, но не больше. Никаких знаний в области параллельной обработки и конкурентных задач не требуется. Цель -- дать вам необходимые инструменты для работы с gevent, помочь приручить нынешние проблемы одновременных вычислений и начать писать асинхронные программы.</p>
 <h3 id="_2">Соучастники</h3>
 <p>В хронологическом порядке:
@@ -256,16 +256,16 @@ Task 7 done
 Task 8 done
 Task 9 done
 Asynchronous:
-Task 3 done
+Task 0 done
+Task 2 done
+Task 5 done
 Task 6 done
+Task 9 done
+Task 1 done
+Task 3 done
 Task 7 done
 Task 8 done
-Task 0 done
-Task 1 done
-Task 2 done
 Task 4 done
-Task 5 done
-Task 9 done
 </pre></code></p>
 <p>В случае синхронного исполнения все задачи выполняются последовательно, одна за другой. Это блокирует исполнение основной программы, пока исполняется каждая подзадача.</p>
 <p>Важная часть программы выше ф-я gevent.spawn, которая помещает исполнение подзадачи в greenlet-микропоток. Список инициализированных гринлетов хранится в массиве потоков, который передаётся gevent.joinall, которая блокирует исполнение основной программы для выполнения переданных ей гринлетов. Исполнение основной программы будет продолжено лишь тогда, когда будут завершены все гринлеты.</p>
@@ -891,11 +891,11 @@ for i in igroup.imap_unordered(intensive, xrange(3)):
 <p></code>
 <pre><code class="python">
 Size of group 3
-Hello from Greenlet 3064877500
+Hello from Greenlet 3065180604
 Size of group 3
-Hello from Greenlet 3064878060
+Hello from Greenlet 3065181164
 Size of group 3
-Hello from Greenlet 3064878700
+Hello from Greenlet 3065181804
 Ordered
 ('task', 0)
 ('task', 1)
