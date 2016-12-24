@@ -705,11 +705,8 @@ group.join()
 ]]]
 [[[end]]]
 
-This is very useful for managing groups of asynchronous tasks.
-
-As mentioned above, ``Group`` also provides an API for dispatching
-jobs to grouped greenlets and collecting their results in various
-ways.
+Это очень удобнйы инструмент для управления группами асинхронных задач.
+Группа также предоставляет инструменты для отправки задач сгруппированным гринлетам и сбора результатов их работы.
 
 [[[cog
 import gevent
@@ -744,10 +741,7 @@ for i in igroup.imap_unordered(intensive, xrange(3)):
 ]]]
 [[[end]]]
 
-A pool is a structure designed for handling dynamic numbers of
-greenlets which need to be concurrency-limited.  This is often
-desirable in cases where one wants to do many network or IO bound
-tasks in parallel.
+``Объединение`` (pool) же представляет собой структуру, которая позволяет ограничить число одновременно выполняющихся гринлетов. Их удобно использовать при обработке сетевых событий или задач ввода/вывода
 
 [[[cog
 import gevent
@@ -762,9 +756,8 @@ pool.map(hello_from, xrange(3))
 ]]]
 [[[end]]]
 
-Often when building gevent driven services one will center the
-entire service around a pool structure. An example might be a
-class which polls on various sockets.
+Частым решением при построении сервиса на основе gevent является выбор такой архитектуры, в основе которой лежит использование объединения (pool) как основной структуры данных.
+Для примера рассмотрим класс, который опрашивает набор сокетов:
 
 <pre>
 <code class="python">from gevent.pool import Pool
@@ -791,15 +784,9 @@ class SocketPool(object):
 </code>
 </pre>
 
-## Locks and Semaphores
+## Блокировки и семафоры
 
-A semaphore is a low level synchronization primitive that allows
-greenlets to coordinate and limit concurrent access or execution. A
-semaphore exposes two methods, ``acquire`` and ``release`` The
-difference between the number of times a semaphore has been
-acquired and released is called the bound of the semaphore. If a
-semaphore bound reaches 0 it will block until another greenlet
-releases its acquisition.
+``Семафор`` -- это низкоуровневый примитив синхронизации, который позволяет координировать работу гринлетов, контролировать одновременный доступ или исполнение. Семафор предоставляет два методы: ``acquire``, ``release``. Разница между числом захватов и особождения семафора называется связанностью семафора. Если готовность равна "0", тогда она заблокируется до момента, пока другой гринлет не освободит семафор.
 
 [[[cog
 from gevent import sleep
@@ -827,17 +814,13 @@ pool.map(worker2, xrange(3,6))
 ]]]
 [[[end]]]
 
-A semaphore with bound of 1 is known as a Lock. it provides
-exclusive execution to one greenlet. They are often used to
-ensure that resources are only in use at one time in the context
-of a program.
+Семафор, у которого связанность равна "1" называется блокировкой. Блокировка предоставлят одному гринлету эксклюзивное право исполнения. Блокировки используются, чтобы в процессе работы программы, ограничить одновременный доступ к какому-либо ресурсу только для одного гринлета.
 
-## Thread Locals
+## Локальные данные (Thread locals)
 
-Gevent also allows you to specify data which is local to the
-greenlet context. Internally, this is implemented as a global
-lookup which addresses a private namespace keyed by the
-greenlet's ``getcurrent()`` value.
+``Gevent`` предоставляет возможность определять какие данные будут считать локальными внутри гринлета. 
+
+Это реализовано через глобальный поиск атрибута внутри контекста гринлета, доступ к которому осуществляется по ключу равному значению возвращаемому ``getcurrent()``
 
 [[[cog
 import gevent
@@ -865,10 +848,7 @@ gevent.joinall([g1, g2])
 ]]]
 [[[end]]]
 
-Many web frameworks that use gevent store HTTP session
-objects inside gevent thread locals. For example, using the
-Werkzeug utility library and its proxy object we can create
-Flask-style request objects.
+Многие фреймворки используют local для хранения объектов сессии HTTP. К примеру, возьмём Werkzeug и воспользуемся его прокси-объектом и создадим оъект запроса в стиле Flask.
 
 <pre>
 <code class="python">from gevent.local import local
@@ -909,15 +889,11 @@ WSGIServer(('', 8000), application).serve_forever()
 <code>
 </pre>
 
-Flask's system is a bit more sophisticated than this example, but the
-idea of using thread locals as local session storage is nonetheless the
-same.
+Flask конечно более сложен, чем показано в этом примере, однако идея организации хранения сессии всё та же. 
 
-## Subprocess
+## Подпроцессы (Subprocess)
 
-As of gevent 1.0, ``gevent.subprocess`` -- a patched version of Python's
-``subprocess`` module -- has been added. It supports cooperative waiting on
-subprocesses.
+В gevent 1.0 появился ``gevent.subprocess`` -- пропатченная версия модуля ``subprocess``, которая поддерживает одновременное исполнение.
 
 <pre>
 <code class="python">
@@ -947,13 +923,7 @@ Linux
 <code>
 </pre>
 
-Many people also want to use ``gevent`` and ``multiprocessing`` together. One of
-the most obvious challenges is that inter-process communication provided by
-``multiprocessing`` is not cooperative by default. Since
-``multiprocessing.Connection``-based objects (such as ``Pipe``) expose their
-underlying file descriptors, ``gevent.socket.wait_read`` and ``wait_write`` can
-be used to cooperatively wait for ready-to-read/ready-to-write events before
-actually reading/writing:
+Множество людей хотело использовать ``gevent`` вместе ``subprocess``, однако межпроцессное взаимодействие, которое реализовано на основе модуля ``multiprocssing``, от природы не было предназначено для одновременного исполнения. Но так как объекты на основе ``multiprocessing.Connection`` (например ``Pipe```) предоставляют доступ к своим файловым дескрипторам, то оказалось возможнм использовать ``gevent.socket.wait_read`` и ``gevent.wait_write`` для одновременного ожидания получения событий ``ready-to-read`` / ``ready-to-write`` перед тем, как приступить к реальным чтению или записи.   
 
 <pre>
 <code class="python">
@@ -992,38 +962,23 @@ if __name__ == '__main__':
 </code>
 </pre>
 
-Note, however, that the combination of ``multiprocessing`` and gevent brings
-along certain OS-dependent pitfalls, among others:
+### Внимание: 
 
-* After [forking](http://linux.die.net/man/2/fork) on POSIX-compliant systems
-gevent's state in the child is ill-posed. One side effect is that greenlets
-spawned before ``multiprocessing.Process`` creation run in both, parent and
-child process.
-* ``a.send()`` in ``put_msg()`` above might still block the calling thread
-non-cooperatively: a ready-to-write event only ensures that one byte can be
-written. The underlying buffer might be full before the attempted write is
-complete.
-* The ``wait_write()`` / ``wait_read()``-based approach as indicated above does
-not work on Windows (``IOError: 3 is not a socket (files are not supported)``),
-because Windows cannot watch pipes for events.
+Следует помнить, что использование связки gevent-subprocess вносит в ваш код проблемы, связанные с используемой ОС, среди которых такие: 
 
-The Python package [gipc](http://pypi.python.org/pypi/gipc) overcomes these
-challenges for you in a largely transparent fashion on both, POSIX-compliant and
-Windows systems. It provides gevent-aware ``multiprocessing.Process``-based
-child processes and gevent-cooperative inter-process communication based on
-pipes.
+* На POSIX-совместимых системах состояние gevent в дочернем    процессе будет некорректным. Одним из побочных эффектов этого является, что гринлет, порожденный перед созданием multiprocessing.Process будет работать и в дочернем и в родительском процессе.
 
-## Actors
+* В примере выше a.send() в put_msg() может блокировать вызывающий поток: событие ready-to-write говорит лишь о том, что один байт может быть записан. При этом буффер может быть переполнится между этим событием и реальной попыткой записи.
 
-The actor model is a higher level concurrency model popularized
-by the language Erlang. In short the main idea is that you have a
-collection of independent Actors which have an inbox from which
-they receive messages from other Actors. The main loop inside the
-Actor iterates through its messages and takes action according to
-its desired behavior.
+* Подход с использованием wait_write() / wait_read() не работает на Windows. (IOError: 3 is not a socket (files are not supported)), так как у Windows нет механизма слежения за событиями в каналах (pipes)
 
-Gevent does not have a primitive Actor type, but we can define
-one very simply using a Queue inside of a subclassed Greenlet.
+Существует библиотека  [gipc](http://pypi.python.org/pypi/gipc), которая решает большинство таких проблем. Она использует multiprocessing.Process, который учитывает наличие gevent, а также межпроцессное взаимодействие, основанное на каналах. 
+
+## Актёры (Actors)
+
+Это высокоуровневая модель одновременных вычислений, которую популяризирует Erlang. Суть заключаетя в том, что у вас имеется набор независимых актёров, у каждого актера есть условный контейнер для входящих сообщений от других актёров. Основной циклу внутри каждого актёра проверяет регулярно этот контейнер входящих сообщений на наличие новых сообщений и выполняет действия на основе этих сообщений.
+
+У gevent нет примитива Актёр, но его легко создать на основе gevent.Greenlet и gevent.Queue
 
 <pre>
 <code class="python">import gevent
@@ -1082,29 +1037,20 @@ gevent.joinall([ping, pong])
 </code>
 </pre>
 
-# Real World Applications
+# Примеры использования в реальных приложениях
 
 ## Gevent ZeroMQ
 
-[ZeroMQ](http://www.zeromq.org/) is described by its authors as
-"a socket library that acts as a concurrency framework". It is a
-very powerful messaging layer for building concurrent and
-distributed applications.
+Авторы [ZeroMQ](http://www.zeromq.org/) заявляют её как библиотеку для работы с сокетами, которая ведет себя как фреймворк одновременного исполнения ("a socket library that acts as a concurrency framework"). Это очень мощный библиотека для работы с сообщениями и построения распределённых и параллельных приложений.
 
-ZeroMQ provides a variety of socket primitives, the simplest of
-which being a Request-Response socket pair. A socket has two
-methods of interest ``send`` and ``recv``, both of which are
-normally blocking operations. But this is remedied by a brilliant
-[library](https://github.com/tmc/gevent-zeromq) (is now part of PyZMQ)
-by [Travis Cline](https://github.com/tmc) which uses gevent.socket
-to poll ZeroMQ sockets in a non-blocking manner.
+Библиотека предоставляет разные примитивы для работы с сокетами. Самый простой из них -- это пара Request-Response. Сокет имеет два метода: ``send`` & ``recv``. Оба блокирующие. Это поведение устраняет отличная [библиотека](https://github.com/tmc/gevent-zeromq) (теперь часть pyzmq) от Трэвиса Кляйна. В ней используется ``gevent.socket`` для неблокирующего опроса ZeroMQ-сокетов.
 
 [[[cog
 # Note: Remember to ``pip install pyzmq``
 import gevent
 import zmq.green as zmq
 
-# Global Context
+# Глобальный контекст
 context = zmq.Context()
 
 def server():
@@ -1136,7 +1082,7 @@ gevent.joinall([publisher, client])
 ]]]
 [[[end]]]
 
-## Simple Servers
+## Простые серверы
 
 <pre>
 <code class="python">
@@ -1156,24 +1102,18 @@ server.serve_forever()
 </code>
 </pre>
 
-## WSGI Servers
+## WSGI сервер
 
-Gevent provides two WSGI servers for serving content over HTTP.
-Henceforth called ``wsgi`` and ``pywsgi``:
+Из коробки Gevent предоставляет два WSGI-сервера: wsgi, pywsgi
 
 * gevent.wsgi.WSGIServer
 * gevent.pywsgi.WSGIServer
 
-In earlier versions of gevent before 1.0.x, gevent used libevent
-instead of libev. Libevent included a fast HTTP server which was
-used by gevent's ``wsgi`` server.
-
-In gevent 1.0.x there is no http server included. Instead
-``gevent.wsgi`` is now an alias for the pure Python server in
-``gevent.pywsgi``.
 
 
-## Streaming Servers
+До версии "1.0" gevent использовал libevent вместо libev сейчас. В libevent был быстрый    HTTP-сервер, который использовался в wsgi сервере gevent.
+
+## Потоковые сервера (Sreaming servers)
 
 **If you are using gevent 1.0.x, this section does not apply**
 
